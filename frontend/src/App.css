@@ -1,0 +1,15 @@
+body { font-family: 'Segoe UI', sans-serif; background: #f4f4f9; margin: 0; }
+.app-container { max-width: 800px; margin: 0 auto; padding: 20px; }
+.navbar { background: #333; color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-radius: 8px;}
+.links a { color: #ddd; text-decoration: none; margin-left: 15px; font-weight: bold; }
+.links a:hover { color: #fff; }
+.card { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 20px; }
+input, select, textarea { width: 100%; padding: 10px; margin: 5px 0 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;}
+button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1rem; }
+button:hover { background: #0056b3; }
+.timeline { list-style: none; padding: 0; }
+.timeline li { border-left: 2px solid #007bff; padding-left: 15px; margin-bottom: 15px; position: relative; }
+.timeline li::before { content: ''; position: absolute; left: -6px; top: 0; width: 10px; height: 10px; background: #007bff; border-radius: 50%; }
+.success-badge { background: #d4edda; color: #155724; padding: 10px; text-align: center; border-radius: 5px; font-weight: bold; margin-bottom: 15px; }
+.secret-note { background: #e2e3e5; padding: 10px; border-radius: 5px; border-left: 5px solid #333; }
+.decrypt-btn { background: #28a745; }
