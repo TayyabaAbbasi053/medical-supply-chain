@@ -31,14 +31,14 @@ const signData = (data, secretKey) => {
   return CryptoJS.HmacSHA256(JSON.stringify(data), secretKey).toString();
 };
 
-// 5. HMAC Signature for Manufacturer Event
+// 5. HMAC Signature for Event (Generic for any role)
 const generateHMACSignature = (eventData, secretKey) => {
   const signatureData = {
     batchId: eventData.batchId,
     dataHash: eventData.dataHash,
     chainHash: eventData.chainHash,
     timestamp: eventData.timestamp,
-    role: "Manufacturer"
+    role: eventData.role
   };
   return CryptoJS.HmacSHA256(JSON.stringify(signatureData), secretKey).toString();
 };
@@ -76,12 +76,19 @@ const generateQRCode = async (batchId, chainHash) => {
   }
 };
 
+// 9. Verify HMAC Signature
+const verifyHMACSignature = (eventData, signature, secretKey) => {
+  const expectedSignature = generateHMACSignature(eventData, secretKey);
+  return expectedSignature === signature;
+};
+
 module.exports = {
   calculateHash,
   generateDataHash,
   generateChainHash,
   signData,
   generateHMACSignature,
+  verifyHMACSignature,
   encryptData,
   decryptData,
   generateQRCode

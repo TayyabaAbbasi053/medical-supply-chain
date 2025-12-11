@@ -1,10 +1,11 @@
 require("dotenv").config();
 const authRoutes = require('./routes/auth');
+const manufacturerRoutes = require('./modules/manufacturer/routes/batchRoutes');
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const Batch = require("./models/Batch");
-const { calculateHash, signData, encryptData, decryptData } = require("./utils/cryptoUtils");
+const { calculateHash, signData, encryptData, decryptData } = require("./shared/utils/cryptoUtils");
 
 const app = express();
 
@@ -13,6 +14,12 @@ app.use(cors()); // Allow Frontend to talk to Backend
 app.use(express.json()); // Allow JSON data
 // Use authentication routes
 app.use("/api/auth", authRoutes);
+// Use module routes
+app.use("/api/modules/manufacturer", manufacturerRoutes);
+// TODO: Add other module routes when implemented
+// app.use("/api/modules/distributor", distributorRoutes);
+// app.use("/api/modules/pharmacy", pharmacyRoutes);
+// app.use("/api/modules/patient", patientRoutes);
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
