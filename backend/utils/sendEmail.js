@@ -25,3 +25,4 @@ async function sendOTP(email, otp) {
 }
 
 module.exports = { sendOTP };
+cd

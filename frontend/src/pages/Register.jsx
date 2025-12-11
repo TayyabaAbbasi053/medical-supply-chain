@@ -13,17 +13,18 @@ export default function Register() {
   const [msg, setMsg] = useState("");
   const FIXED_QUESTION = "What is the name of your pet?";
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMsg("");
-
     try {
       const payload = { ...form, securityQuestion: FIXED_QUESTION };
-      const res = await axios.post("http://localhost:5000/api/auth/register", payload);
+      const res = await axios.post(
+        "http://localhost:5000/api/auth/register",
+        payload
+      );
 
       if (res.data.success) setMsg("✅ Registered Successfully!");
     } catch (err) {
@@ -78,7 +79,7 @@ export default function Register() {
                 required
               />
 
-              {/* 🔥 MAROON DROPDOWN WITH WHITE TEXT */}
+              {/* ✨ MAROON DROPDOWN */}
               <select
                 name="role"
                 onChange={handleChange}
@@ -102,7 +103,9 @@ export default function Register() {
                 required
               />
 
-              <button type="submit" style={styles.btn}>Create Account</button>
+              <button type="submit" style={styles.btn}>
+                Create Account
+              </button>
             </form>
 
             <p style={styles.bottomText}>
@@ -116,7 +119,7 @@ export default function Register() {
   );
 }
 
-/* ------------------ STYLES ------------------ */
+/* ---------------- STYLES ---------------- */
 
 const MAROON = "#5a0000";
 const DEEP_MAROON = "#7a1212";
@@ -125,8 +128,8 @@ const styles = {
   pageWrapper: {
     position: "fixed",
     inset: 0,
-    width: "100vw",
     height: "100vh",
+    width: "100vw",
     overflow: "hidden",
     display: "flex",
     justifyContent: "center",
@@ -140,16 +143,17 @@ const styles = {
       "url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80')",
     backgroundSize: "cover",
     backgroundPosition: "center",
+    zIndex: 0,
   },
 
   centerContainer: {
     position: "relative",
     zIndex: 2,
-    width: "100%",
-    height: "100%",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+    width: "100%",
+    height: "100%",
     padding: "20px",
   },
 
@@ -158,8 +162,8 @@ const styles = {
     width: "90%",
     maxWidth: "1100px",
     minHeight: "550px",
-    background: "rgba(255, 255, 255, 0.75)",
     borderRadius: "18px",
+    background: "rgba(255, 255, 255, 0.75)",
     backdropFilter: "blur(12px)",
     boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
     overflow: "hidden",
@@ -168,7 +172,7 @@ const styles = {
   leftPanel: {
     flex: 1.1,
     padding: "60px 45px",
-    background: "rgba(255,255,255,0.38)",
+    background: "rgba(255,255,255,0.40)",
   },
 
   logo: {
@@ -178,6 +182,7 @@ const styles = {
   },
 
   leftText: {
+    marginTop: "10px",
     fontSize: "15px",
     color: MAROON,
   },
@@ -190,23 +195,22 @@ const styles = {
   heading: {
     fontSize: "28px",
     fontWeight: "800",
-    marginBottom: "5px",
     color: MAROON,
   },
 
   subheading: {
     marginBottom: "18px",
+    fontSize: "15px",
     color: MAROON,
   },
 
   msg: {
     padding: "10px",
     borderRadius: "8px",
-    fontSize: "14px",
+    background: "rgba(255,220,220,0.6)",
+    color: MAROON,
     marginBottom: "10px",
     fontWeight: "600",
-    color: MAROON,
-    background: "rgba(255,220,220,0.6)",
   },
 
   input: {
@@ -216,11 +220,11 @@ const styles = {
     borderRadius: "8px",
     border: "1px solid #bbb",
     background: "#f6f6f6",
-    fontSize: "15px",
     color: MAROON,
+    fontSize: "15px",
   },
 
-  /* 🔥 MAROON DROPDOWN STYLING */
+  /* ✨ Maroon dropdown */
   select: {
     width: "100%",
     padding: "12px",
@@ -228,8 +232,8 @@ const styles = {
     borderRadius: "8px",
     background: DEEP_MAROON,
     color: "white",
-    fontSize: "15px",
     border: "none",
+    fontSize: "15px",
     cursor: "pointer",
   },
 
