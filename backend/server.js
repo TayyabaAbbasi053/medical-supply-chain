@@ -5,7 +5,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const Batch = require("./models/Batch");
-const { calculateHash, signData, encryptData, decryptData } = require("./shared/utils/cryptoUtils");
+const { calculateHash, signData, encryptData, decryptData } = require("./utils/cryptoUtils");
 
 const app = express();
 

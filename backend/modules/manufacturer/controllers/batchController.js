@@ -1,11 +1,11 @@
-const Batch = require("../../models/Batch");
+const Batch = require("../../../models/Batch");
 const {
   generateDataHash,
   generateChainHash,
   generateHMACSignature,
   encryptData,
   generateQRCode
-} = require("../../shared/utils/cryptoUtils");
+} = require("../../../shared/utils/cryptoUtils");
 
 // Create Batch Controller
 exports.createBatch = async (req, res) => {
