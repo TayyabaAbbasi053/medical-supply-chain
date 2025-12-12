@@ -11,14 +11,19 @@ const {
 exports.createBatch = async (req, res) => {
   try {
     const {
-      batchId,
+      // 🔐 ENCRYPTED FIELDS
+      batchNumber,
+      strength,
+      quantityProduced,
+      distributorId,
+      dispatchDate,
+      
+      // 🔓 PUBLIC FIELDS
       medicineName,
-      activeIngredients,
-      quantity,
-      manufacturerName,
-      manufacturerId,
       manufacturingDate,
       expiryDate,
+      manufacturerName,
+      
       location = "Factory Output"
     } = req.body;
 
@@ -26,54 +31,56 @@ exports.createBatch = async (req, res) => {
     const authenticatedUser = req.user;
 
     // Validation - ALL fields are required
-    if (!batchId || !medicineName || !activeIngredients || !quantity || !manufacturerName || !manufacturerId || !manufacturingDate || !expiryDate) {
+    if (!batchNumber || !strength || !quantityProduced || !distributorId || !dispatchDate || 
+        !medicineName || !manufacturingDate || !expiryDate || !manufacturerName) {
       return res.status(400).json({
-        error: "All fields are required: batchId, medicineName, activeIngredients, quantity, manufacturerName, manufacturerId, manufacturingDate, expiryDate"
+        error: "All fields are required. Encrypted: batchNumber, strength, quantityProduced, distributorId, dispatchDate. Public: medicineName, manufacturingDate, expiryDate, manufacturerName"
       });
     }
 
     // Check if batch already exists
-    const existingBatch = await Batch.findOne({ batchId });
+    const existingBatch = await Batch.findOne({ batchNumber });
     if (existingBatch) {
-      return res.status(400).json({ error: "Batch ID already exists" });
+      return res.status(400).json({ error: "Batch Number already exists" });
     }
 
-    // Batch data preparation
-    const batchData = {
-      batchId,
+    // 🔓 PUBLIC BATCH DATA (Not encrypted - accessible to all)
+    const publicBatchData = {
+      batchNumber,
       medicineName,
-      quantity,
-      manufacturerName,
       manufacturingDate,
-      expiryDate
+      expiryDate,
+      manufacturerName
     };
 
-    // SENSITIVE DATA TO ENCRYPT: batchId, quantity, manufacturerId, activeIngredients
+    // 🔐 SENSITIVE DATA TO ENCRYPT (Only manufacturer knows this)
     const sensitiveData = {
-      batchId,
-      quantity,
-      manufacturerId,
-      activeIngredients,
+      batchNumber,
+      strength,
+      quantityProduced,
+      distributorId,
+      dispatchDate,
+      manufacturerSignature: `MFG-SIG-${batchNumber}-${Date.now()}`,
       timestamp: new Date()
     };
 
-    // AES Encryption - Only encrypt sensitive proprietary data
+    // AES Encryption - Encrypt all sensitive proprietary data
     const sensitiveDataString = JSON.stringify(sensitiveData);
     const encryptedBatchDetails = encryptData(sensitiveDataString);
 
-    // SHA-256 DataHash
-    const dataHash = generateDataHash(batchData);
+    // SHA-256 DataHash (based on PUBLIC data only)
+    const dataHash = generateDataHash(publicBatchData);
 
     // Hash-Chain Generation (Genesis)
     const previousChainHash = "GENESIS_BLOCK_HASH";
     const chainHash = generateChainHash(previousChainHash, dataHash);
 
-    // QR Code Generation
-    const qrCodeDataURL = await generateQRCode(batchId, chainHash);
+    // QR Code Generation (based on batch number and chain hash)
+    const qrCodeDataURL = await generateQRCode(batchNumber, chainHash);
 
-    // HMAC Signature
+    // HMAC Signature (includes manufacturer signature)
     const eventData = {
-      batchId,
+      batchNumber,
       dataHash,
       chainHash,
       timestamp: new Date(),
@@ -92,23 +99,30 @@ exports.createBatch = async (req, res) => {
       dataHash: dataHash,
       chainHash: chainHash,
       qrCode: qrCodeDataURL,
-      hmacSignature: hmacSignature
+      hmacSignature: hmacSignature,
+      encryptionStatus: "ENCRYPTED"
     };
 
     // Create Batch in Database
     const newBatch = new Batch({
-      batchId,
+      batchNumber,
       medicineName,
-      quantity,
+      quantityProduced,
       manufacturerName,
-      manufacturerId: manufacturerId || "SYSTEM",
-      manufacturingDate: batchData.manufacturingDate,
-      expiryDate: batchData.expiryDate,
+      manufacturingDate,
+      expiryDate,
+      // 🔐 Encrypted sensitive data
       batchDetails: encryptedBatchDetails,
+      // Security metadata
       genesisDataHash: dataHash,
       genesisChainHash: chainHash,
       genesisQRCode: qrCodeDataURL,
-      chain: [genesisEvent]
+      chain: [genesisEvent],
+      encryptionAlgorithm: "AES-256-ECB",
+      dataClassification: {
+        encrypted: ["batchNumber", "strength", "quantityProduced", "distributorId", "dispatchDate", "manufacturerSignature"],
+        public: ["medicineName", "manufacturingDate", "expiryDate", "manufacturerName", "qrCode"]
+      }
     });
 
     await newBatch.save();
@@ -116,15 +130,26 @@ exports.createBatch = async (req, res) => {
     // Response Object
     const dispatchResponse = {
       success: true,
-      message: "Batch created successfully with complete security chain",
+      message: "Batch created successfully with encryption applied",
       batch: {
-        batchId: newBatch.batchId,
+        // 🔓 PUBLIC DATA (visible in response)
+        batchNumber: newBatch.batchNumber,
         medicineName: newBatch.medicineName,
-        quantity: newBatch.quantity,
-        manufacturerName: newBatch.manufacturerName,
         manufacturingDate: newBatch.manufacturingDate,
         expiryDate: newBatch.expiryDate,
+        manufacturerName: newBatch.manufacturerName,
         status: "GENESIS_CREATED"
+      },
+      dataClassification: {
+        encrypted: {
+          fields: ["Batch Number", "Strength/Dosage", "Quantity Produced", "Distributor ID", "Dispatch Date", "Manufacturer Signature"],
+          algorithm: "AES-256-ECB",
+          status: "✅ ENCRYPTED"
+        },
+        public: {
+          fields: ["Medicine Name", "Manufacturing Date", "Expiry Date", "Manufacturer Name", "QR Code"],
+          status: "🔓 PUBLIC (Unencrypted)"
+        }
       },
       security: {
         dataHash: dataHash,
@@ -132,7 +157,7 @@ exports.createBatch = async (req, res) => {
         hmacSignature: hmacSignature,
         qrCode: {
           dataURL: qrCodeDataURL,
-          content: `${batchId}|${chainHash}`,
+          content: `${batchNumber}|${chainHash}`,
           width: 300,
           height: 300
         }
@@ -143,10 +168,6 @@ exports.createBatch = async (req, res) => {
         timestamp: genesisEvent.timestamp,
         signature: genesisEvent.signature,
         chainHash: genesisEvent.chainHash
-      },
-      encryptedData: {
-        batchDetails: encryptedBatchDetails,
-        encryptionAlgorithm: "AES-256-ECB"
       }
     };
 

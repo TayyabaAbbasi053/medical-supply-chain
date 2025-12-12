@@ -71,6 +71,8 @@ export default function Login() {
       localStorage.setItem('userEmail', email);
       localStorage.setItem('userRole', res.data.role);
       localStorage.setItem('userName', res.data.name || '');
+      localStorage.setItem('is3FAVerified', 'true'); // Mark 3FA as complete
+      localStorage.setItem('loginTimestamp', Date.now().toString()); // Set login time for session timeout
 
       // Redirect based on role after 1 second
       setTimeout(() => {
