@@ -13,6 +13,7 @@ exports.createBatch = async (req, res) => {
     const {
       batchId,
       medicineName,
+      activeIngredients,
       quantity,
       manufacturerName,
       manufacturerId,
@@ -21,10 +22,13 @@ exports.createBatch = async (req, res) => {
       location = "Factory Output"
     } = req.body;
 
-    // Validation
-    if (!batchId || !medicineName || !quantity || !manufacturerName) {
+    // Get authenticated user
+    const authenticatedUser = req.user;
+
+    // Validation - ALL fields are required
+    if (!batchId || !medicineName || !activeIngredients || !quantity || !manufacturerName || !manufacturerId || !manufacturingDate || !expiryDate) {
       return res.status(400).json({
-        error: "Missing required fields: batchId, medicineName, quantity, manufacturerName"
+        error: "All fields are required: batchId, medicineName, activeIngredients, quantity, manufacturerName, manufacturerId, manufacturingDate, expiryDate"
       });
     }
 
@@ -40,13 +44,22 @@ exports.createBatch = async (req, res) => {
       medicineName,
       quantity,
       manufacturerName,
-      manufacturingDate: manufacturingDate || new Date(),
-      expiryDate: expiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      manufacturingDate,
+      expiryDate
     };
 
-    // AES Encryption
-    const batchDetailsString = JSON.stringify(batchData);
-    const encryptedBatchDetails = encryptData(batchDetailsString);
+    // SENSITIVE DATA TO ENCRYPT: batchId, quantity, manufacturerId, activeIngredients
+    const sensitiveData = {
+      batchId,
+      quantity,
+      manufacturerId,
+      activeIngredients,
+      timestamp: new Date()
+    };
+
+    // AES Encryption - Only encrypt sensitive proprietary data
+    const sensitiveDataString = JSON.stringify(sensitiveData);
+    const encryptedBatchDetails = encryptData(sensitiveDataString);
 
     // SHA-256 DataHash
     const dataHash = generateDataHash(batchData);

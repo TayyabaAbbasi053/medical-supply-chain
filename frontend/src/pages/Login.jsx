@@ -66,12 +66,19 @@ export default function Login() {
       if (!res.data.success) return setMessage("❌ " + res.data.error);
 
       setMessage("✔ Login Successful!");
+      
+      // Store authentication info in localStorage
+      localStorage.setItem('userEmail', email);
+      localStorage.setItem('userRole', res.data.role);
+      localStorage.setItem('userName', res.data.name || '');
 
-      // Redirect based on role
-      if (res.data.role === "Manufacturer") window.location.href = "/manufacturer";
-      else if (res.data.role === "Distributor") window.location.href = "/distributor";
-      else if (res.data.role === "Pharmacist") window.location.href = "/pharmacist";
-      else if (res.data.role === "Patient") window.location.href = "/patient";
+      // Redirect based on role after 1 second
+      setTimeout(() => {
+        if (res.data.role === "Manufacturer") window.location.href = "/manufacturer";
+        else if (res.data.role === "Distributor") window.location.href = "/distributor";
+        else if (res.data.role === "Pharmacist") window.location.href = "/pharmacist";
+        else if (res.data.role === "Patient") window.location.href = "/patient";
+      }, 1000);
     } catch (err) {
       setMessage("❌ Security answer failed");
     }
