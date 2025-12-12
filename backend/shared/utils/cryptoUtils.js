@@ -10,9 +10,9 @@ const calculateHash = (data) => {
 // 2. SHA-256 DataHash (For batch details - cryptographic hash)
 const generateDataHash = (batchData) => {
   const dataString = JSON.stringify({
-    batchId: batchData.batchId,
+    batchNumber: batchData.batchNumber,
     medicineName: batchData.medicineName,
-    quantity: batchData.quantity,
+    quantityProduced: batchData.quantityProduced,
     manufacturerName: batchData.manufacturerName,
     manufacturingDate: batchData.manufacturingDate,
     expiryDate: batchData.expiryDate
@@ -34,7 +34,7 @@ const signData = (data, secretKey) => {
 // 5. HMAC Signature for Event (Generic for any role)
 const generateHMACSignature = (eventData, secretKey) => {
   const signatureData = {
-    batchId: eventData.batchId,
+    batchNumber: eventData.batchNumber,
     dataHash: eventData.dataHash,
     chainHash: eventData.chainHash,
     timestamp: eventData.timestamp,
