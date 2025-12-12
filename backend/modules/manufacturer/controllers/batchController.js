@@ -11,8 +11,10 @@ const {
 exports.createBatch = async (req, res) => {
   try {
     const {
-      // 🔐 ENCRYPTED FIELDS
+      // � PLAINTEXT IDENTIFIER
       batchNumber,
+      
+      // 🔐 ENCRYPTED FIELDS
       strength,
       quantityProduced,
       distributorId,
@@ -34,7 +36,7 @@ exports.createBatch = async (req, res) => {
     if (!batchNumber || !strength || !quantityProduced || !distributorId || !dispatchDate || 
         !medicineName || !manufacturingDate || !expiryDate || !manufacturerName) {
       return res.status(400).json({
-        error: "All fields are required. Encrypted: batchNumber, strength, quantityProduced, distributorId, dispatchDate. Public: medicineName, manufacturingDate, expiryDate, manufacturerName"
+        error: "All fields are required. Plaintext: batchNumber. Encrypted: strength, quantityProduced, distributorId, dispatchDate. Public: medicineName, manufacturingDate, expiryDate, manufacturerName"
       });
     }
 
@@ -54,8 +56,8 @@ exports.createBatch = async (req, res) => {
     };
 
     // 🔐 SENSITIVE DATA TO ENCRYPT (Only manufacturer knows this)
+    // NOTE: batchNumber is NOT encrypted (needed for QR codes and patient verification)
     const sensitiveData = {
-      batchNumber,
       strength,
       quantityProduced,
       distributorId,
@@ -120,8 +122,9 @@ exports.createBatch = async (req, res) => {
       chain: [genesisEvent],
       encryptionAlgorithm: "AES-256-ECB",
       dataClassification: {
-        encrypted: ["batchNumber", "strength", "quantityProduced", "distributorId", "dispatchDate", "manufacturerSignature"],
-        public: ["medicineName", "manufacturingDate", "expiryDate", "manufacturerName", "qrCode"]
+        plaintext: ["batchNumber"],
+        encrypted: ["strength", "quantityProduced", "distributorId", "dispatchDate", "manufacturerSignature"],
+        public: ["medicineName", "manufacturingDate", "expiryDate", "manufacturerName"]
       }
     });
 
@@ -141,13 +144,17 @@ exports.createBatch = async (req, res) => {
         status: "GENESIS_CREATED"
       },
       dataClassification: {
+        plaintext: {
+          fields: ["Batch Number"],
+          reason: "Needed for QR codes and patient verification"
+        },
         encrypted: {
-          fields: ["Batch Number", "Strength/Dosage", "Quantity Produced", "Distributor ID", "Dispatch Date", "Manufacturer Signature"],
+          fields: ["Strength/Dosage", "Quantity Produced", "Distributor ID", "Dispatch Date", "Manufacturer Signature"],
           algorithm: "AES-256-ECB",
           status: "✅ ENCRYPTED"
         },
         public: {
-          fields: ["Medicine Name", "Manufacturing Date", "Expiry Date", "Manufacturer Name", "QR Code"],
+          fields: ["Medicine Name", "Manufacturing Date", "Expiry Date", "Manufacturer Name"],
           status: "🔓 PUBLIC (Unencrypted)"
         }
       },
