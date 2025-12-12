@@ -52,7 +52,8 @@ The Patient module is the **end consumer layer** of the supply chain. Patients r
 
 | Constraint | Why | Implementation |
 |-----------|-----|-----------------|
-| **No Access to Encrypted Data** | Patient shouldn't see batch number, quantity, distributor ID | Only show PUBLIC fields |
+| **No Access to Encrypted Data** | Patient shouldn't see quantity, distributor ID, dispatch date | Only show PUBLIC & PLAINTEXT fields |
+| **Can See Batch Number** | Needed for QR verification | Plaintext identifier in QR code |
 | **No HMAC Signature Verification** | Patients don't need cryptographic proof | Read-only verification display |
 | **No Chain Edit Permission** | Patients can't modify supply chain data | GET-only endpoints |
 | **View-Only Batch Details** | Cannot update or delete | No POST/PUT/DELETE on batch endpoints |
@@ -67,8 +68,9 @@ The Patient module is the **end consumer layer** of the supply chain. Patients r
 MANUFACTURER SIDE (Created)
 │
 ├── Batch Created with:
+│   ├── � PLAINTEXT: Batch Number (needed for QR codes)
 │   ├── 🔓 PUBLIC: Medicine Name, Mfg Date, Expiry Date, Manufacturer Name
-│   ├── 🔐 ENCRYPTED: Batch Number, Strength, Quantity, Distributor ID
+│   ├── 🔐 ENCRYPTED: Strength, Quantity, Distributor ID, Dispatch Date
 │   ├── QR Code: batchNumber|chainHash (Encoded)
 │   └── Chain Event: [Genesis Event]
 │
@@ -89,6 +91,7 @@ PATIENT SIDE (Verifies & Uses)
 │
 ├── Receives Medicine from Pharmacist
 ├── CAN SEE:
+│   ✅ Batch Number (plaintext - from QR code)
 │   ✅ Medicine Name
 │   ✅ Manufacturing Date
 │   ✅ Expiry Date
@@ -97,10 +100,10 @@ PATIENT SIDE (Verifies & Uses)
 │   ✅ QR Code Authenticity
 │
 ├── CANNOT SEE:
-│   ❌ Batch Number (Encrypted)
-│   ❌ Quantity Produced
-│   ❌ Distributor ID
-│   ❌ Dispatch Date
+│   ❌ Strength/Dosage (Encrypted)
+│   ❌ Quantity Produced (Encrypted)
+│   ❌ Distributor ID (Encrypted)
+│   ❌ Dispatch Date (Encrypted)
 │   ❌ HMAC Signatures (Backend verification only)
 │
 └── VERIFY: Scan QR → Check Chain Hash → Confirm Authenticity
@@ -168,14 +171,15 @@ Frontend: Display Verification Result
 
 | Field | Visible | Reason |
 |-------|---------|--------|
+| Batch Number | ✅ | Plaintext identifier (from QR scan) |
 | Medicine Name | ✅ | Need to know what they're taking |
 | Strength/Dosage | ✅ | Critical for health/safety |
 | Manufacturing Date | ✅ | Quality indicator |
 | Expiry Date | ✅ | CRITICAL - Don't use expired |
 | Manufacturer Name | ✅ | Transparency |
-| Batch Number | ❌ | Encrypted (sensitive) |
-| Quantity Produced | ❌ | Manufacturer proprietary |
-| Distributor ID | ❌ | Business confidential |
+| Quantity Produced | ❌ | Manufacturer proprietary (encrypted) |
+| Distributor ID | ❌ | Business confidential (encrypted) |
+| Dispatch Date | ❌ | Sensitive supply chain info (encrypted) |
 
 **Frontend Logic:**
 ```javascript
@@ -502,8 +506,8 @@ router.get('/my-medicines', getVerifiedMedicines);
 |--------|--------|
 | **Patient Role** | Read-only end consumer |
 | **Verify Methods** | QR scan OR manual batch entry |
-| **Visible Data** | PUBLIC fields only (medicine details) |
-| **Hidden Data** | ENCRYPTED fields (batch number, quantity, etc.) |
+| **Visible Data** | PLAINTEXT (batch number) + PUBLIC fields (medicine details) |
+| **Hidden Data** | ENCRYPTED fields (strength, quantity, distributor ID, dispatch date) |
 | **Main Features** | Verify batch, view medicine details, track supply chain |
 | **Timeline** | Genesis → Distributor → Pharmacist → Patient |
 | **Authenticity Check** | Chain hash verification |
