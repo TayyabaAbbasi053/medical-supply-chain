@@ -1,12 +1,8 @@
 const Batch = require("../../../models/Batch");
-const {
-  generateDataHash,
-  generateChainHash,
-  generateHMACSignature
-} = require("../../../shared/utils/cryptoUtils");
+const { generateChainHash } = require("../../../shared/utils/cryptoUtils");
 
 // ---------------------------------------------------------
-// GET BATCH DETAILS + FULL VERIFICATION (PATIENT)
+// GET BATCH DETAILS + VERIFICATION (PATIENT)
 // ---------------------------------------------------------
 exports.getBatchDetails = async (req, res) => {
   try {
@@ -21,49 +17,20 @@ exports.getBatchDetails = async (req, res) => {
       });
     }
 
-    /* -------------------------------------------------
-       STEP 1 — GENESIS DATA HASH VERIFICATION
-    ------------------------------------------------- */
-    const recalculatedGenesisHash = generateDataHash({
-      batchNumber: batch.batchNumber,
-      medicineName: batch.medicineName,
-      manufacturingDate: batch.manufacturingDate,
-      expiryDate: batch.expiryDate,
-      manufacturerName: batch.manufacturerName
-    });
-
-    let isAuthentic = recalculatedGenesisHash === batch.genesisDataHash;
-
-    /* -------------------------------------------------
-       STEP 2 — CHAIN INTEGRITY + HMAC VERIFICATION
-    ------------------------------------------------- */
+    // -------------------------------------------------
+    // PATIENT VERIFICATION MODEL
+    // Trust genesis, verify chain integrity only
+    // -------------------------------------------------
+    let isAuthentic = true;
     let previousHash = "GENESIS_BLOCK_HASH";
 
     for (const event of batch.chain) {
-      // Verify chain hash
       const expectedChainHash = generateChainHash(
         previousHash,
         event.dataHash
       );
 
       if (expectedChainHash !== event.chainHash) {
-        isAuthentic = false;
-        break;
-      }
-
-      // Verify HMAC signature
-      const expectedHMAC = generateHMACSignature(
-        {
-          batchNumber: batch.batchNumber,
-          dataHash: event.dataHash,
-          chainHash: event.chainHash,
-          timestamp: event.timestamp,
-          role: event.role
-        },
-        process.env.SECRET_KEY
-      );
-
-      if (expectedHMAC !== event.hmacSignature) {
         isAuthentic = false;
         break;
       }
@@ -82,9 +49,8 @@ exports.getBatchDetails = async (req, res) => {
       },
       verification: {
         isAuthentic,
-        genesisHashMatch: recalculatedGenesisHash === batch.genesisDataHash,
         chainLength: batch.chain.length,
-        verificationLevel: "GENESIS + CHAIN + HMAC"
+        verificationLevel: "CHAIN INTEGRITY (PATIENT)"
       }
     });
 
