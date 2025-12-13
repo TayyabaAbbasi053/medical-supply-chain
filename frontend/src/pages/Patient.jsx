@@ -39,7 +39,6 @@ export default function Patient() {
   const verifyBatch = async () => {
     if (!batchNumber.trim()) {
       setResult("❌ Enter a batch number.");
-      setShowBatchModal(false);
       return;
     }
 
@@ -60,11 +59,11 @@ export default function Patient() {
         `Expiry: ${new Date(b.expiryDate).toLocaleDateString()}\n\n` +
         `Events in Supply Chain: ${v.chainLength}`
       );
+      setBatchNumber("");
     } catch (err) {
       setResult("❌ Batch not found or counterfeit.");
-    } finally {
-      setShowBatchModal(false); // ✅ AUTO CLOSE
     }
+    setShowBatchModal(false);
   };
 
   /* ---------------------------------------------------------
@@ -93,11 +92,11 @@ export default function Patient() {
       });
 
       setResult(output);
+      setTrackBatchNumber("");
     } catch (err) {
       setResult("❌ No supply chain timeline found.");
-    } finally {
-      setShowTrackModal(false); // ✅ AUTO CLOSE
     }
+    setShowTrackModal(false);
   };
 
   /* ---------------------------------------------------------
