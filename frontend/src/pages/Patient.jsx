@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { Html5Qrcode } from "html5-qrcode";
 
 export default function Patient() {
 
@@ -34,7 +35,37 @@ export default function Patient() {
   }, []);
 
   /* ---------------------------------------------------------
-     VERIFY BATCH
+     VERIFY BATCH (CORE)
+  --------------------------------------------------------- */
+  const verifyBatchByValue = async (value) => {
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/modules/patient/batch/${value}`,
+        {
+          headers: {
+            "x-user-email": localStorage.getItem("userEmail")
+          }
+        }
+      );
+
+      const b = res.data.batch;
+      const v = res.data.verification;
+
+      setResult(
+        (v.isAuthentic ? "✔ AUTHENTIC MEDICINE\n\n" : "❌ COUNTERFEIT MEDICINE\n\n") +
+        `Medicine: ${b.medicineName}\n` +
+        `Manufacturer: ${b.manufacturerName}\n` +
+        `Mfg Date: ${new Date(b.manufacturingDate).toLocaleDateString()}\n` +
+        `Expiry: ${new Date(b.expiryDate).toLocaleDateString()}\n\n` +
+        `Events in Supply Chain: ${v.chainLength}`
+      );
+    } catch {
+      setResult("❌ Batch not found or counterfeit.");
+    }
+  };
+
+  /* ---------------------------------------------------------
+     VERIFY BATCH (MANUAL)
   --------------------------------------------------------- */
   const verifyBatch = async () => {
     if (!batchNumber.trim()) {
@@ -43,27 +74,24 @@ export default function Patient() {
       return;
     }
 
+    await verifyBatchByValue(batchNumber);
+    setShowBatchModal(false);
+  };
+
+  /* ---------------------------------------------------------
+     VERIFY QR FROM FILE (NEW FEATURE)
+  --------------------------------------------------------- */
+  const handleQRFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/modules/patient/batch/${batchNumber}`,
-        { headers: { email: localStorage.getItem("userEmail") } }
-      );
-
-      const b = res.data.batch;
-      const v = res.data.verification;
-
-      setResult(
-        `✔ AUTHENTIC BATCH\n\n` +
-        `Medicine: ${b.medicineName}\n` +
-        `Manufacturer: ${b.manufacturerName}\n` +
-        `Mfg Date: ${new Date(b.manufacturingDate).toLocaleDateString()}\n` +
-        `Expiry: ${new Date(b.expiryDate).toLocaleDateString()}\n\n` +
-        `Events in Supply Chain: ${v.chainLength}`
-      );
-    } catch (err) {
-      setResult("❌ Batch not found or counterfeit.");
-    } finally {
-      setShowBatchModal(false); // ✅ AUTO CLOSE
+      const qr = new Html5Qrcode("qr-file-reader");
+      const decodedText = await qr.scanFile(file, true);
+      await verifyBatchByValue(decodedText);
+      await qr.clear();
+    } catch {
+      setResult("❌ Unable to read QR code from image.");
     }
   };
 
@@ -80,7 +108,11 @@ export default function Patient() {
     try {
       const res = await axios.get(
         `http://localhost:5000/api/modules/patient/batch/${trackBatchNumber}/chain`,
-        { headers: { email: localStorage.getItem("userEmail") } }
+        {
+          headers: {
+            "x-user-email": localStorage.getItem("userEmail")
+          }
+        }
       );
 
       let output = `✔ SUPPLY CHAIN TIMELINE\n\n`;
@@ -93,10 +125,10 @@ export default function Patient() {
       });
 
       setResult(output);
-    } catch (err) {
+    } catch {
       setResult("❌ No supply chain timeline found.");
     } finally {
-      setShowTrackModal(false); // ✅ AUTO CLOSE
+      setShowTrackModal(false);
     }
   };
 
@@ -109,7 +141,7 @@ export default function Patient() {
   };
 
   /* ---------------------------------------------------------
-     STYLING
+     STYLING (UNCHANGED)
   --------------------------------------------------------- */
 
   const GLASS = {
@@ -120,129 +152,22 @@ export default function Patient() {
   };
 
   const styles = {
-    page: {
-      height: "100vh",
-      width: "100vw",
-      background: "#ffffff",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-    },
-
-    container: {
-      width: "80%",
-      maxWidth: "1200px",
-      textAlign: "center",
-      border: "2px solid #5a0000",
-      borderRadius: "18px",
-      padding: "40px",
-    },
-
-    title: {
-      fontSize: "34px",
-      fontWeight: 800,
-      color: "#5a0000",
-    },
-
-    welcome: {
-      fontSize: "18px",
-      color: "#5a0000",
-      marginBottom: "30px",
-    },
-
-    cardRow: {
-      display: "flex",
-      justifyContent: "center",
-      gap: "40px",
-      marginBottom: "30px",
-    },
-
-    card: {
-      width: "300px",
-      height: "200px",
-      padding: "25px",
-      borderRadius: "18px",
-      border: "2px solid #5a0000",
-      cursor: "pointer",
-      transition: "0.3s",
-    },
-
-    cardTitle: {
-      fontSize: "22px",
-      fontWeight: "700",
-      color: "#5a0000",
-    },
-
-    cardText: {
-      marginTop: "10px",
-      color: "#333",
-    },
-
-    resultBox: {
-      background: "#ffeaea",
-      border: "1px solid #5a0000",
-      borderRadius: "10px",
-      width: "60%",
-      margin: "0 auto 20px auto",
-      padding: "20px",
-      color: "#5a0000",
-      whiteSpace: "pre-wrap",
-      textAlign: "left",
-    },
-
-    footer: {
-      marginTop: "20px",
-      color: "#5a0000",
-    },
-
-    modalOverlay: {
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.4)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    modal: {
-      width: "350px",
-      background: "white",
-      padding: "25px",
-      textAlign: "center",
-      borderRadius: "12px",
-    },
-
-    modalTitle: {
-      fontSize: "20px",
-      fontWeight: 700,
-      color: "#5a0000",
-    },
-
-    input: {
-      width: "100%",
-      padding: "12px",
-      borderRadius: "8px",
-      border: "1px solid #ccc",
-      marginBottom: "10px",
-    },
-
-    btnPrimary: {
-      width: "100%",
-      padding: "12px",
-      background: "#7a1212",
-      color: "white",
-      borderRadius: "8px",
-      border: "none",
-      marginBottom: "10px",
-    },
-
-    btnSecondary: {
-      width: "100%",
-      padding: "12px",
-      background: "#bbb",
-      borderRadius: "8px",
-      border: "none",
-    },
+    page: { height: "100vh", width: "100vw", background: "#ffffff", display: "flex", justifyContent: "center", alignItems: "center" },
+    container: { width: "80%", maxWidth: "1200px", textAlign: "center", border: "2px solid #5a0000", borderRadius: "18px", padding: "40px" },
+    title: { fontSize: "34px", fontWeight: 800, color: "#5a0000" },
+    welcome: { fontSize: "18px", color: "#5a0000", marginBottom: "30px" },
+    cardRow: { display: "flex", justifyContent: "center", gap: "40px", marginBottom: "30px" },
+    card: { width: "300px", height: "200px", padding: "25px", borderRadius: "18px", border: "2px solid #5a0000", cursor: "pointer" },
+    cardTitle: { fontSize: "22px", fontWeight: "700", color: "#5a0000" },
+    cardText: { marginTop: "10px", color: "#333" },
+    resultBox: { background: "#ffeaea", border: "1px solid #5a0000", borderRadius: "10px", width: "60%", margin: "0 auto 20px auto", padding: "20px", color: "#5a0000", whiteSpace: "pre-wrap", textAlign: "left" },
+    footer: { marginTop: "20px", color: "#5a0000" },
+    modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" },
+    modal: { width: "350px", background: "white", padding: "25px", textAlign: "center", borderRadius: "12px" },
+    modalTitle: { fontSize: "20px", fontWeight: 700, color: "#5a0000" },
+    input: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ccc", marginBottom: "10px" },
+    btnPrimary: { width: "100%", padding: "12px", background: "#7a1212", color: "white", borderRadius: "8px", border: "none", marginBottom: "10px" },
+    btnSecondary: { width: "100%", padding: "12px", background: "#bbb", borderRadius: "8px", border: "none" },
   };
 
   /* ---------------------------------------------------------
@@ -259,6 +184,12 @@ export default function Patient() {
           <div style={{ ...styles.card, ...GLASS }} onClick={() => setShowBatchModal(true)}>
             <h2 style={styles.cardTitle}>Verify Batch</h2>
             <p style={styles.cardText}>Check authenticity.</p>
+          </div>
+
+          <div style={{ ...styles.card, ...GLASS }}>
+            <h2 style={styles.cardTitle}>Verify Medicine</h2>
+            <p style={styles.cardText}>Upload QR image</p>
+            <input type="file" accept="image/*" onChange={handleQRFileUpload} />
           </div>
 
           <div style={{ ...styles.card, ...GLASS }} onClick={() => setShowTrackModal(true)}>
@@ -279,7 +210,6 @@ export default function Patient() {
         </footer>
       </div>
 
-      {/* VERIFY MODAL */}
       {showBatchModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
@@ -291,7 +221,6 @@ export default function Patient() {
         </div>
       )}
 
-      {/* TRACK MODAL */}
       {showTrackModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
@@ -302,6 +231,9 @@ export default function Patient() {
           </div>
         </div>
       )}
+
+      {/* hidden container required by html5-qrcode */}
+      <div id="qr-file-reader" style={{ display: "none" }} />
     </div>
   );
 }
