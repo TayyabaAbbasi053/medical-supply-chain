@@ -3,9 +3,10 @@ const User = require("../models/user");
 // Middleware to verify user is logged in and has correct role
 const authenticateUser = async (req, res, next) => {
     try {
-        // Get user info from request headers or body
-        const { email, role } = req.body;
-        
+        // Get user email from multiple places to support different clients
+        // Priority: custom header -> query param -> body
+        const email = req.headers['x-user-email'] || req.query?.email || req.body?.email;
+
         if (!email) {
             return res.status(401).json({ error: "Email required for authentication" });
         }

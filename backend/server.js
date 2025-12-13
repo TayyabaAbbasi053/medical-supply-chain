@@ -6,6 +6,8 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const Batch = require("./models/Batch");
 const { calculateHash, signData, encryptData, decryptData } = require("./utils/cryptoUtils");
+const patientRoutes = require("./modules/patient/routes/batchRoutes");
+
 
 const app = express();
 
@@ -19,7 +21,7 @@ app.use("/api/modules/manufacturer", manufacturerRoutes);
 // TODO: Add other module routes when implemented
 // app.use("/api/modules/distributor", distributorRoutes);
 // app.use("/api/modules/pharmacy", pharmacyRoutes);
-// app.use("/api/modules/patient", patientRoutes);
+ app.use("/api/modules/patient", patientRoutes);
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)

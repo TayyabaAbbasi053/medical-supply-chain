@@ -1,13 +1,17 @@
 const Batch = require("../../../models/Batch");
+const {
+  generateDataHash,
+  generateChainHash,
+  generateHMACSignature
+} = require("../../../shared/utils/cryptoUtils");
 
 // ---------------------------------------------------------
-// GET BATCH DETAILS (PUBLIC VIEW)
+// GET BATCH DETAILS + FULL VERIFICATION (PATIENT)
 // ---------------------------------------------------------
 exports.getBatchDetails = async (req, res) => {
   try {
     const { batchNumber } = req.params;
 
-    // Find batch using batchNumber — NOT batchId
     const batch = await Batch.findOne({ batchNumber });
 
     if (!batch) {
@@ -17,8 +21,55 @@ exports.getBatchDetails = async (req, res) => {
       });
     }
 
-    // Basic authenticity check:
-    const isAuthentic = !!batch.genesisDataHash;
+    /* -------------------------------------------------
+       STEP 1 — GENESIS DATA HASH VERIFICATION
+    ------------------------------------------------- */
+    const recalculatedGenesisHash = generateDataHash({
+      batchNumber: batch.batchNumber,
+      medicineName: batch.medicineName,
+      manufacturingDate: batch.manufacturingDate,
+      expiryDate: batch.expiryDate,
+      manufacturerName: batch.manufacturerName
+    });
+
+    let isAuthentic = recalculatedGenesisHash === batch.genesisDataHash;
+
+    /* -------------------------------------------------
+       STEP 2 — CHAIN INTEGRITY + HMAC VERIFICATION
+    ------------------------------------------------- */
+    let previousHash = "GENESIS_BLOCK_HASH";
+
+    for (const event of batch.chain) {
+      // Verify chain hash
+      const expectedChainHash = generateChainHash(
+        previousHash,
+        event.dataHash
+      );
+
+      if (expectedChainHash !== event.chainHash) {
+        isAuthentic = false;
+        break;
+      }
+
+      // Verify HMAC signature
+      const expectedHMAC = generateHMACSignature(
+        {
+          batchNumber: batch.batchNumber,
+          dataHash: event.dataHash,
+          chainHash: event.chainHash,
+          timestamp: event.timestamp,
+          role: event.role
+        },
+        process.env.SECRET_KEY
+      );
+
+      if (expectedHMAC !== event.hmacSignature) {
+        isAuthentic = false;
+        break;
+      }
+
+      previousHash = event.chainHash;
+    }
 
     return res.json({
       success: true,
@@ -31,7 +82,9 @@ exports.getBatchDetails = async (req, res) => {
       },
       verification: {
         isAuthentic,
-        chainLength: batch.chain.length
+        genesisHashMatch: recalculatedGenesisHash === batch.genesisDataHash,
+        chainLength: batch.chain.length,
+        verificationLevel: "GENESIS + CHAIN + HMAC"
       }
     });
 
@@ -39,14 +92,13 @@ exports.getBatchDetails = async (req, res) => {
     console.error("Patient getBatchDetails Error:", err);
     return res.status(500).json({
       success: false,
-      error: "Server error",
-      message: err.message
+      error: "Server error"
     });
   }
 };
 
 // ---------------------------------------------------------
-// GET SUPPLY CHAIN TIMELINE
+// GET SUPPLY CHAIN TIMELINE (PATIENT)
 // ---------------------------------------------------------
 exports.getSupplyChainTimeline = async (req, res) => {
   try {
@@ -61,19 +113,18 @@ exports.getSupplyChainTimeline = async (req, res) => {
       });
     }
 
-    // Convert all chain events into clean JSON
-    const chainEvents = batch.chain.map(event => ({
+    const chainEvents = batch.chain.map((event, index) => ({
+      step: index + 1,
       role: event.role,
       location: event.location,
       timestamp: event.timestamp,
-      signatureValid: true, // Signature verification optional
-      previousHash: event.previousHash,
       chainHash: event.chainHash
     }));
 
     return res.json({
       success: true,
       batchNumber: batch.batchNumber,
+      chainLength: batch.chain.length,
       chain: chainEvents
     });
 
@@ -81,8 +132,7 @@ exports.getSupplyChainTimeline = async (req, res) => {
     console.error("Patient getSupplyChainTimeline Error:", err);
     return res.status(500).json({
       success: false,
-      error: "Server error",
-      message: err.message
+      error: "Server error"
     });
   }
 };

@@ -1,14 +1,17 @@
 const Batch = require("../../../models/Batch");
 
 // ---------------------------------------------------------
-// GET BATCH DETAILS (PUBLIC VIEW)
+// PUBLIC: VERIFY BATCH AUTHENTICITY
 // ---------------------------------------------------------
-exports.getBatchDetails = async (req, res) => {
+exports.publicVerifyBatch = async (req, res) => {
   try {
     const { batchNumber } = req.params;
 
-    // Find batch using batchNumber — NOT batchId
-    const batch = await Batch.findOne({ batchNumber });
+    // Support either `batchNumber` (public) or `batchId` (other modules)
+    const identifier = batchNumber;
+    const batch = await Batch.findOne({
+      $or: [{ batchNumber: identifier }, { batchId: identifier }]
+    });
 
     if (!batch) {
       return res.status(404).json({
@@ -17,13 +20,12 @@ exports.getBatchDetails = async (req, res) => {
       });
     }
 
-    // Basic authenticity check:
     const isAuthentic = !!batch.genesisDataHash;
 
     return res.json({
       success: true,
       batch: {
-        batchNumber: batch.batchNumber,
+        batchNumber: batch.batchNumber || batch.batchId || identifier,
         medicineName: batch.medicineName,
         manufacturerName: batch.manufacturerName,
         manufacturingDate: batch.manufacturingDate,
@@ -36,7 +38,7 @@ exports.getBatchDetails = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Patient getBatchDetails Error:", err);
+    console.error("Public verifyBatch Error:", err);
     return res.status(500).json({
       success: false,
       error: "Server error",
@@ -46,13 +48,17 @@ exports.getBatchDetails = async (req, res) => {
 };
 
 // ---------------------------------------------------------
-// GET SUPPLY CHAIN TIMELINE
+// PUBLIC: GET SUPPLY CHAIN TIMELINE
 // ---------------------------------------------------------
-exports.getSupplyChainTimeline = async (req, res) => {
+exports.publicTrackTimeline = async (req, res) => {
   try {
     const { batchNumber } = req.params;
 
-    const batch = await Batch.findOne({ batchNumber });
+    // Support lookup by either public `batchNumber` or internal `batchId`
+    const identifier = batchNumber;
+    const batch = await Batch.findOne({
+      $or: [{ batchNumber: identifier }, { batchId: identifier }]
+    });
 
     if (!batch) {
       return res.status(404).json({
@@ -61,24 +67,22 @@ exports.getSupplyChainTimeline = async (req, res) => {
       });
     }
 
-    // Convert all chain events into clean JSON
     const chainEvents = batch.chain.map(event => ({
       role: event.role,
       location: event.location,
       timestamp: event.timestamp,
-      signatureValid: true, // Signature verification optional
       previousHash: event.previousHash,
       chainHash: event.chainHash
     }));
 
     return res.json({
       success: true,
-      batchNumber: batch.batchNumber,
+      batchNumber: batch.batchNumber || batch.batchId || identifier,
       chain: chainEvents
     });
 
   } catch (err) {
-    console.error("Patient getSupplyChainTimeline Error:", err);
+    console.error("Public trackTimeline Error:", err);
     return res.status(500).json({
       success: false,
       error: "Server error",
