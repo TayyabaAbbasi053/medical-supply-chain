@@ -3,7 +3,7 @@ const router = express.Router();
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
-const { sendOTP } = require("../utils/sendEmail"); // <-- ADDED LINE
+const { sendOTP } = require("../utils/sendEmail");
 
 // Generate a 6-digit OTP
 function generateOTP() {
@@ -53,15 +53,13 @@ router.post("/login", async (req, res) => {
         const isMatch = await user.comparePassword(password);
         if (!isMatch) return res.status(400).json({ error: "Incorrect password" });
 
-        // Generate OTP
         const otp = generateOTP();
-        const expiry = Date.now() + 5 * 60 * 1000; // 5 minutes
+        const expiry = Date.now() + 5 * 60 * 1000;
 
         user.otp = otp;
         user.otpExpires = expiry;
         await user.save();
 
-        // SEND OTP EMAIL INSTEAD OF CONSOLE
         await sendOTP(email, otp);
 
         res.json({
@@ -93,7 +91,6 @@ router.post("/verify-otp", async (req, res) => {
             return res.status(400).json({ error: "OTP expired" });
         }
 
-        // Clear OTP after verification
         user.otp = null;
         user.otpExpires = null;
         await user.save();
@@ -132,6 +129,33 @@ router.post("/verify-question", async (req, res) => {
 
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+/* ----------------------------------------------------
+   GET CURRENT USER (🔥 FIX FOR PATIENT NAME)
+-----------------------------------------------------*/
+router.get("/me", async (req, res) => {
+    try {
+        const { email } = req.query;
+
+        if (!email) {
+            return res.status(400).json({ success: false, error: "Email required" });
+        }
+
+        const user = await User.findOne({ email }).select("name email role");
+
+        if (!user) {
+            return res.status(404).json({ success: false, error: "User not found" });
+        }
+
+        res.json({
+            success: true,
+            user
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
