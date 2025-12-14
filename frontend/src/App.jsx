@@ -35,7 +35,7 @@ function Layout() {
             <Link to="/login">Login</Link>
             <Link to="/register">Register</Link>
             <Link to="/manufacturer">Manufacturer</Link>
-            <Link to="/distributor">Distributor & Pharmacy</Link>
+            <Link to="/distributor">Distributor</Link>
             <Link to="/patient">Patient Verification</Link>
           </div>
         </nav>
