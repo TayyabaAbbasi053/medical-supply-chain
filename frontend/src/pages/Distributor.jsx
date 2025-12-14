@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import QRCode from 'react-qr-code';
 
@@ -6,6 +6,108 @@ export default function Distributor() {
   const [batchId, setBatchId] = useState('');
   const [location, setLocation] = useState('Regional Warehouse');
   const [message, setMessage] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sessionTimeLeft, setSessionTimeLeft] = useState(null);
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
+
+  // Session timeout configuration (15 minutes = 900 seconds)
+  const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
+  const WARNING_TIME = 2 * 60 * 1000; // Show warning at 2 minutes remaining
+
+  // Check if user is logged in with 3FA verification
+  useEffect(() => {
+    try {
+      const loggedInEmail = localStorage.getItem('userEmail');
+      const loggedInRole = localStorage.getItem('userRole');
+      const is3FAVerified = localStorage.getItem('is3FAVerified');
+      const loginTimestamp = localStorage.getItem('loginTimestamp');
+      
+      if (loggedInEmail && loggedInRole === 'Distributor' && is3FAVerified === 'true') {
+        // Check if session has expired
+        if (loginTimestamp) {
+          const now = Date.now();
+          const elapsed = now - parseInt(loginTimestamp);
+          
+          if (elapsed > SESSION_TIMEOUT) {
+            // Session expired
+            localStorage.clear();
+            window.location.href = "/login";
+            return;
+          }
+          
+          // Calculate remaining session time
+          const remaining = SESSION_TIMEOUT - elapsed;
+          setSessionTimeLeft(remaining);
+        }
+        
+        setIsAuthenticated(true);
+        setUserEmail(loggedInEmail);
+      } else {
+        setIsAuthenticated(false);
+      }
+    } catch (err) {
+      console.error('localStorage error:', err);
+      setIsAuthenticated(false);
+    }
+    setLoading(false);
+  }, []);
+
+  // Session timeout interval
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const interval = setInterval(() => {
+      try {
+        const loginTimestamp = localStorage.getItem('loginTimestamp');
+        if (loginTimestamp) {
+          const now = Date.now();
+          const elapsed = now - parseInt(loginTimestamp);
+          const remaining = SESSION_TIMEOUT - elapsed;
+
+          if (remaining <= 0) {
+            // Session expired - logout
+            localStorage.clear();
+            alert('⏱️ Your session has expired. Please login again.');
+            window.location.href = "/login";
+            return;
+          }
+
+          setSessionTimeLeft(remaining);
+
+          // Show warning when 2 minutes left
+          if (remaining <= WARNING_TIME && !showSessionWarning) {
+            setShowSessionWarning(true);
+          }
+        }
+      } catch (err) {
+        console.error('Session check error:', err);
+      }
+    }, 1000); // Check every second
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, showSessionWarning]);
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = "/";
+  };
+
+  if (loading) {
+    return <div className="card">Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="card">
+        <h2>❌ Access Denied</h2>
+        <p>You are not authorized to access this page. Please login as a Distributor first.</p>
+        <button onClick={() => window.location.href = "/"}>Go to Login</button>
+      </div>
+    );
+  }
 
   const handleReceive = async () => {
     // Basic validation
@@ -35,14 +137,26 @@ export default function Distributor() {
 
   return (
     <div className="card">
-      {/* Header with Icon */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
-        <span style={{ fontSize: '2.5rem' }}>📦</span>
-        <div>
-          <h2 style={{ margin: 0, border: 'none', padding: 0, fontSize: '1.5rem' }}>Distributor Dashboard</h2>
-          <small style={{ color: '#6b7280', fontSize: '0.9rem' }}>Logistics & Supply Chain Tracking</small>
+      {/* Header with Authentication Status */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px', marginBottom: '25px', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <span style={{ fontSize: '2.5rem' }}>📦</span>
+          <div>
+            <h2 style={{ margin: 0, border: 'none', padding: 0, fontSize: '1.5rem' }}>Distributor Dashboard</h2>
+            <small style={{ color: '#6b7280', fontSize: '0.9rem' }}>🔐 3FA Verified | Email: {userEmail}</small>
+          </div>
         </div>
+        <button onClick={handleLogout} style={{ padding: '8px 16px', background: '#d4691f', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+          Logout
+        </button>
       </div>
+
+      {/* Session Warning */}
+      {showSessionWarning && sessionTimeLeft && (
+        <div style={{ padding: '12px', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '6px', marginBottom: '15px', color: '#856404' }}>
+          ⏱️ Your session will expire in {Math.floor(sessionTimeLeft / 1000 / 60)} minute(s). Please complete your task.
+        </div>
+      )}
       
       {/* Location Input */}
       <div className="form-group">
@@ -102,3 +216,8 @@ export default function Distributor() {
     </div>
   );
 }
+
+function DistributorOld() {
+  const [batchId, setBatchId] = useState('');
+  const [location, setLocation] = useState('Regional Warehouse');
+  const [message, setMessage] = useState(null);

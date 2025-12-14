@@ -8,6 +8,11 @@ export default function Patient() {
      STATE
   --------------------------------------------------------- */
   const [patientName, setPatientName] = useState("Patient");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sessionTimeLeft, setSessionTimeLeft] = useState(null);
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
 
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [showTrackModal, setShowTrackModal] = useState(false);
@@ -16,6 +21,103 @@ export default function Patient() {
   const [trackBatchNumber, setTrackBatchNumber] = useState("");
 
   const [result, setResult] = useState("");
+
+  // Session timeout configuration (15 minutes = 900 seconds)
+  const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
+  const WARNING_TIME = 2 * 60 * 1000; // Show warning at 2 minutes remaining
+
+  /* ---------------------------------------------------------
+     CHECK 3FA AUTHENTICATION ON MOUNT
+  --------------------------------------------------------- */
+  useEffect(() => {
+    try {
+      const loggedInEmail = localStorage.getItem('userEmail');
+      const loggedInRole = localStorage.getItem('userRole');
+      const is3FAVerified = localStorage.getItem('is3FAVerified');
+      const loginTimestamp = localStorage.getItem('loginTimestamp');
+      
+      if (loggedInEmail && loggedInRole === 'Patient' && is3FAVerified === 'true') {
+        // Check if session has expired
+        if (loginTimestamp) {
+          const now = Date.now();
+          const elapsed = now - parseInt(loginTimestamp);
+          
+          if (elapsed > SESSION_TIMEOUT) {
+            // Session expired
+            localStorage.clear();
+            window.location.href = "/";
+            return;
+          }
+          
+          // Calculate remaining session time
+          const remaining = SESSION_TIMEOUT - elapsed;
+          setSessionTimeLeft(remaining);
+        }
+        
+        setIsAuthenticated(true);
+        setUserEmail(loggedInEmail);
+      } else {
+        setIsAuthenticated(false);
+      }
+    } catch (err) {
+      console.error('localStorage error:', err);
+      setIsAuthenticated(false);
+    }
+    setLoading(false);
+  }, []);
+
+  // Session timeout interval
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const interval = setInterval(() => {
+      try {
+        const loginTimestamp = localStorage.getItem('loginTimestamp');
+        if (loginTimestamp) {
+          const now = Date.now();
+          const elapsed = now - parseInt(loginTimestamp);
+          const remaining = SESSION_TIMEOUT - elapsed;
+
+          if (remaining <= 0) {
+            // Session expired - logout
+            localStorage.clear();
+            alert('⏱️ Your session has expired. Please login again.');
+            window.location.href = "/";
+            return;
+          }
+
+          setSessionTimeLeft(remaining);
+
+          // Show warning when 2 minutes left
+          if (remaining <= WARNING_TIME && !showSessionWarning) {
+            setShowSessionWarning(true);
+          }
+        }
+      } catch (err) {
+        console.error('Session check error:', err);
+      }
+    }, 1000); // Check every second
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, showSessionWarning]);
+
+  if (loading) {
+    return <div style={styles.page}><p>Loading...</p></div>;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.container}>
+          <h2>❌ Access Denied</h2>
+          <p>You are not authorized to access this page. Please login as a Patient first.</p>
+          <button onClick={() => window.location.href = "/"} style={{ padding: '10px 20px', background: '#5a0000', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   /* ---------------------------------------------------------
      LOAD PATIENT NAME
@@ -137,7 +239,7 @@ export default function Patient() {
   --------------------------------------------------------- */
   const logout = () => {
     localStorage.clear();
-    window.location.href = "/login";
+    window.location.href = "/";
   };
 
   /* ---------------------------------------------------------
@@ -177,8 +279,23 @@ export default function Patient() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <h1 style={styles.title}>Patient Dashboard</h1>
-        <p style={styles.welcome}>Welcome, <b>{patientName}</b></p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+          <div>
+            <h1 style={styles.title}>👤 Patient Dashboard</h1>
+            <p style={styles.welcome}>Welcome, <b>{patientName}</b> | 🔐 3FA Verified</p>
+            <small style={{ color: '#999' }}>Email: {userEmail}</small>
+          </div>
+          <button onClick={logout} style={{ padding: '10px 20px', background: '#1f9c89', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>
+            Logout
+          </button>
+        </div>
+
+        {/* Session Warning */}
+        {showSessionWarning && sessionTimeLeft && (
+          <div style={{ padding: '12px', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '6px', marginBottom: '15px', color: '#856404' }}>
+            ⏱️ Your session will expire in {Math.floor(sessionTimeLeft / 1000 / 60)} minute(s). Please complete your task.
+          </div>
+        )}
 
         <div style={styles.cardRow}>
           <div style={{ ...styles.card, ...GLASS }} onClick={() => setShowBatchModal(true)}>

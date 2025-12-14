@@ -1,7 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
+  const navigate = useNavigate();
+  const [selectedRole, setSelectedRole] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -13,6 +16,14 @@ export default function Login() {
   const [securityQuestion, setSecurityQuestion] = useState("");
 
   const [message, setMessage] = useState("");
+
+  // Check selected role on mount
+  useEffect(() => {
+    const role = localStorage.getItem("selectedRole");
+    if (role) {
+      setSelectedRole(role);
+    }
+  }, []);
 
   /* -----------------------------
         STEP 1 — LOGIN
@@ -67,6 +78,12 @@ export default function Login() {
 
       setMessage("✔ Login Successful!");
       
+      // Verify role matches
+      if (res.data.role !== selectedRole) {
+        setMessage(`❌ Your account is registered as ${res.data.role}, not ${selectedRole}`);
+        return;
+      }
+      
       // Store authentication info in localStorage
       localStorage.setItem('userEmail', email);
       localStorage.setItem('userRole', res.data.role);
@@ -95,8 +112,17 @@ export default function Login() {
 
           {/* LEFT PANEL */}
           <div style={styles.leftPanel}>
-            <h1 style={styles.logo}>SupplyChain<br />Secure</h1>
-            <p style={styles.leftText}>Welcome back!</p>
+            <button
+              onClick={() => {
+                localStorage.removeItem("selectedRole");
+                navigate("/");
+              }}
+              style={styles.backBtn}
+            >
+              ← Back
+            </button>
+            <h2 style={styles.heading}>Login {selectedRole && `- ${selectedRole}`}</h2>
+            <p style={styles.subheading}>Access your account with 3-Factor Authentication
           </div>
 
           {/* RIGHT PANEL */}
@@ -144,12 +170,7 @@ export default function Login() {
               </>
             )}
 
-            {/* STEP 3 */}
-            {questionStage && (
-              <>
-                <p style={styles.questionText}>{securityQuestion}</p>
-
-                <input
+            {/<input
                   placeholder="Your Answer"
                   style={styles.input}
                   onChange={(e) => setSecurityAnswer(e.target.value)}
@@ -243,12 +264,29 @@ const styles = {
   rightPanel: {
     flex: 1,
     padding: "50px",
+    position: "relative",
+  },
+
+  backBtn: {
+    position: "absolute",
+    top: "20px",
+    left: "20px",
+    background: "transparent",
+    border: "none",
+    color: MAROON,
+    fontSize: "16px",
+    cursor: "pointer",
+    fontWeight: "600",
+    padding: "8px 12px",
+    borderRadius: "6px",
+    transition: "background 0.2s",
   },
 
   heading: {
     fontSize: "28px",
     fontWeight: "800",
     color: MAROON,
+    marginTop: "20px",
   },
 
   subheading: {
@@ -293,16 +331,5 @@ const styles = {
     borderRadius: "8px",
     fontSize: "16px",
     cursor: "pointer",
-  },
-
-  bottomText: {
-    marginTop: "14px",
-    fontSize: "13px",
-    color: MAROON,
-  },
-
-  link: {
-    color: DEEP_MAROON,
-    fontWeight: "700",
   },
 };
