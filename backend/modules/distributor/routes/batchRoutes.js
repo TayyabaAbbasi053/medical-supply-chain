@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const batchController = require('../controllers/batchController');
 
-console.log("✅ Distributor Routes Loaded"); // <--- ADD THIS LINE
+// Route to fetch details BEFORE receiving
+router.get('/search/:id', batchController.getBatchInfo);
 
-// Specific endpoint for receiving goods
+// Route to confirm receipt
 router.post('/receive', batchController.receiveBatch);
 
 module.exports = router;

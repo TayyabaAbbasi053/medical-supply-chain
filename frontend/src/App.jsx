@@ -10,6 +10,8 @@ import {
 import Manufacturer from "./pages/Manufacturer";
 import Distributor from "./pages/Distributor";
 import Patient from "./pages/Patient";
+import Pharmacy from './pages/Pharmacy'; 
+
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -37,6 +39,7 @@ function Layout() {
             <Link to="/manufacturer">Manufacturer</Link>
             <Link to="/distributor">Distributor</Link>
             <Link to="/patient">Patient Verification</Link>
+            <Link to="/pharmacy">Pharmacy</Link>
           </div>
         </nav>
       )}
@@ -53,6 +56,7 @@ function Layout() {
           <Route path="/manufacturer" element={<Manufacturer />} />
           <Route path="/distributor" element={<Distributor />} />
           <Route path="/patient" element={<Patient />} />
+          <Route path="/pharmacy" element={<Pharmacy />} />
 
           {/* DEFAULT FALLBACK */}
           <Route path="*" element={<Login />} />
