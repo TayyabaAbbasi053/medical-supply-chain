@@ -47,11 +47,16 @@ exports.createBatch = async (req, res) => {
     }
 
     // 🔓 PUBLIC BATCH DATA (Not encrypted - accessible to all)
+    // NORMALIZE DATES TO ISO STRINGS FOR CONSISTENT HASHING
     const publicBatchData = {
       batchNumber,
       medicineName,
-      manufacturingDate,
-      expiryDate,
+      manufacturingDate: manufacturingDate instanceof Date 
+        ? manufacturingDate.toISOString() 
+        : new Date(manufacturingDate).toISOString(),
+      expiryDate: expiryDate instanceof Date 
+        ? expiryDate.toISOString() 
+        : new Date(expiryDate).toISOString(),
       manufacturerName
     };
 
@@ -77,9 +82,6 @@ exports.createBatch = async (req, res) => {
     const previousChainHash = "GENESIS_BLOCK_HASH";
     const chainHash = generateChainHash(previousChainHash, dataHash);
 
-    // QR Code Generation (based on batch number and chain hash)
-    const qrCodeDataURL = await generateQRCode(batchNumber, chainHash);
-
     // HMAC Signature (includes manufacturer signature)
     const eventData = {
       batchNumber,
@@ -100,7 +102,6 @@ exports.createBatch = async (req, res) => {
       previousHash: "GENESIS",
       dataHash: dataHash,
       chainHash: chainHash,
-      qrCode: qrCodeDataURL,
       hmacSignature: hmacSignature,
       encryptionStatus: "ENCRYPTED"
     };
@@ -118,7 +119,6 @@ exports.createBatch = async (req, res) => {
       // Security metadata
       genesisDataHash: dataHash,
       genesisChainHash: chainHash,
-      genesisQRCode: qrCodeDataURL,
       chain: [genesisEvent],
       encryptionAlgorithm: "AES-256-ECB",
       dataClassification: {

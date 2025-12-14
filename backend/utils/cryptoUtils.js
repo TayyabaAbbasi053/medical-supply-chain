@@ -9,14 +9,20 @@ const calculateHash = (data) => {
 
 // 2. SHA-256 DataHash (For batch details - cryptographic hash)
 const generateDataHash = (batchData) => {
-  const dataString = JSON.stringify({
-    batchId: batchData.batchId,
+  // Convert dates to ISO strings for consistent hashing
+  const normalizedData = {
+    batchNumber: batchData.batchNumber,
     medicineName: batchData.medicineName,
-    quantity: batchData.quantity,
-    manufacturerName: batchData.manufacturerName,
-    manufacturingDate: batchData.manufacturingDate,
-    expiryDate: batchData.expiryDate
-  });
+    manufacturingDate: batchData.manufacturingDate instanceof Date 
+      ? batchData.manufacturingDate.toISOString() 
+      : batchData.manufacturingDate,
+    expiryDate: batchData.expiryDate instanceof Date 
+      ? batchData.expiryDate.toISOString() 
+      : batchData.expiryDate,
+    manufacturerName: batchData.manufacturerName
+  };
+  
+  const dataString = JSON.stringify(normalizedData);
   return CryptoJS.SHA256(dataString).toString();
 };
 
@@ -29,6 +35,12 @@ const generateChainHash = (previousChainHash, dataHash) => {
 // 4. HMAC Signature (Digital Signature to prove identity)
 const signData = (data, secretKey) => {
   return CryptoJS.HmacSHA256(JSON.stringify(data), secretKey).toString();
+};
+
+// 4b. Verify Signature (Check if signature matches data)
+const verifySignature = (data, signature, secretKey) => {
+  const recalculatedSignature = signData(data, secretKey);
+  return recalculatedSignature === signature;
 };
 
 // 5. HMAC Signature for Manufacturer Event
@@ -81,6 +93,7 @@ module.exports = {
   generateDataHash,
   generateChainHash,
   signData,
+  verifySignature,
   generateHMACSignature,
   encryptData,
   decryptData,

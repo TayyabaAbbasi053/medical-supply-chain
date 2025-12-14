@@ -318,16 +318,6 @@ export default function Manufacturer() {
           </form>
         </div>
 
-        {/* QR Code Section */}
-        {qrValue && (
-          <div style={styles.qrCard}>
-            <h3 style={styles.qrTitle}>📱 QR Code Generated</h3>
-            <div style={styles.qrContainer}>
-              <QRCode value={qrValue} size={256} level="H" />
-            </div>
-            <p style={styles.qrInfo}>Batch Number: <strong>{qrValue}</strong></p>
-          </div>
-        )}
       </div>
     </div>
   );

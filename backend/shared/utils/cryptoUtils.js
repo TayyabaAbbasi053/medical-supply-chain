@@ -9,14 +9,20 @@ const calculateHash = (data) => {
 
 // 2. SHA-256 DataHash (For batch details - cryptographic hash)
 const generateDataHash = (batchData) => {
-  const dataString = JSON.stringify({
+  // Convert dates to ISO strings for consistent hashing
+  const normalizedData = {
     batchNumber: batchData.batchNumber,
     medicineName: batchData.medicineName,
-    quantityProduced: batchData.quantityProduced,
-    manufacturerName: batchData.manufacturerName,
-    manufacturingDate: batchData.manufacturingDate,
-    expiryDate: batchData.expiryDate
-  });
+    manufacturingDate: batchData.manufacturingDate instanceof Date 
+      ? batchData.manufacturingDate.toISOString() 
+      : batchData.manufacturingDate,
+    expiryDate: batchData.expiryDate instanceof Date 
+      ? batchData.expiryDate.toISOString() 
+      : batchData.expiryDate,
+    manufacturerName: batchData.manufacturerName
+  };
+  
+  const dataString = JSON.stringify(normalizedData);
   return CryptoJS.SHA256(dataString).toString();
 };
 
