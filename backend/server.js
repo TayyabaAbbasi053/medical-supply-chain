@@ -20,9 +20,15 @@ try {
     app.use("/api/modules/manufacturer", manufacturerRoutes);
 
     console.log("3. Loading Distributor Routes...");
-    const distributorRoutes = require('./modules/distributor/routes/batchRoutes'); // <--- CRITICAL LINE
+    const distributorRoutes = require('./modules/distributor/routes/batchRoutes');
     app.use('/api/distributor', distributorRoutes);
-    console.log("✅ Distributor Routes Loaded Successfully into App");
+    console.log("✅ hyDistributor Routes Loaded Successfully into App");
+
+    console.log("4. Loading Pharmacy Routes...");
+    const pharmacyRoutes = require('./modules/pharmacy/routes/batchRoutes');
+    app.use('/api/pharmacy', pharmacyRoutes);
+    console.log("✅ Pharmacy Routes Loaded Successfully into App");
+
 
 } catch (error) {
     console.error("❌ CRITICAL ERROR LOADING ROUTES:", error.message);

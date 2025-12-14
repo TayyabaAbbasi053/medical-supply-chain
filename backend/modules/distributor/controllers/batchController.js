@@ -1,70 +1,141 @@
 const Batch = require('../../../models/Batch');
-const { calculateHash, signData, verifySignature, generateDataHash } = require('../../../shared/utils/cryptoUtils');
+const { 
+  calculateHash, 
+  generateChainHash, 
+  generateHMACSignature, 
+  generateQRCode, 
+  validateChain,
+  decryptData 
+} = require('../../../utils/cryptoUtils');
 
-exports.receiveBatch = async (req, res) => {
+// --- 1. Get Batch Info (Preview before receiving) ---
+exports.getBatchInfo = async (req, res) => {
   try {
-    const { batchId, location } = req.body;
-
-    console.log(`📦 Distributor receiving batch: ${batchId}`);
-
-    // 🔍 FIX 1: Search for EITHER 'batchId' OR 'batchNumber'
-    const batch = await Batch.findOne({ 
-        $or: [
-            { batchId: batchId }, 
-            { batchNumber: batchId } 
-        ]
-    });
+    const { id } = req.params;
+    
+    // Find by batchNumber (Schema uses batchNumber, not batchId)
+    const batch = await Batch.findOne({ batchNumber: id });
 
     if (!batch) {
-      console.log("❌ Batch not found in DB");
+        return res.status(404).json({ success: false, error: "Batch not found" });
+    }
+
+    // Optional: Decrypt internal details for the Distributor to see
+    let decryptedDetails = {};
+    try {
+        const decryptedString = decryptData(batch.batchDetails);
+        decryptedDetails = JSON.parse(decryptedString); // Assuming JSON was stored
+    } catch (e) {
+        console.log("Decryption of details failed or not JSON");
+    }
+
+    // Get current location
+    const lastEvent = batch.chain[batch.chain.length - 1];
+
+    res.json({
+        success: true,
+        batchNumber: batch.batchNumber,
+        medicineName: batch.medicineName,
+        manufacturerName: batch.manufacturerName,
+        quantity: batch.quantityProduced,
+        expiryDate: batch.expiryDate,
+        currentLocation: lastEvent ? lastEvent.location : "Unknown",
+        // Send back a clean status
+        status: batch.isComplete ? "Completed" : "In Transit"
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// --- 2. Receive Batch & Update Chain ---
+exports.receiveBatch = async (req, res) => {
+  try {
+    const { batchId, location, distributorName, phone } = req.body;
+
+    // 1. Find the batch
+    const batch = await Batch.findOne({ batchNumber: batchId });
+    if (!batch) {
       return res.status(404).json({ success: false, error: "Batch not found" });
     }
 
-    // 🔍 FIX 2: Ensure the chain array exists
-    if (!batch.chain) {
-        batch.chain = []; 
+    // 2. 🛡️ SECURITY: Validate Chain Integrity
+    const isChainValid = validateChain(batch.chain);
+    if (!isChainValid) {
+        console.error(`🚨 TAMPERING DETECTED for Batch ${batchId}`);
+        return res.status(403).json({ 
+            success: false, 
+            error: "CRITICAL: Blockchain integrity compromised. Previous data has been modified." 
+        });
     }
 
-    // 🔐 HASH VERIFICATION DISABLED FOR NOW
-    // Will be re-enabled after proper implementation
-    console.log("✅ Batch accepted (hash verification disabled)");
+    // 3. Get Previous Block Data
+    const lastBlock = batch.chain[batch.chain.length - 1];
+    const previousChainHash = lastBlock.chainHash;
+    const previousDataHashLink = lastBlock.dataHash;
 
-    // Get Previous Hash (Handle case where chain is empty)
-    let previousHash = "GENESIS";
-    if (batch.chain.length > 0) {
-        const lastBlock = batch.chain[batch.chain.length - 1];
-        previousHash = lastBlock.dataHash || "UNKNOWN_HASH";
-    }
+    // 4. Prepare New Event Data
+    // We combine distributor details into a string for the 'handlerDetails' field
+    const handlerInfo = `${distributorName} | ${phone}`;
+    
+    const eventTimestamp = new Date();
 
-    // Prepare Event Data
-    const eventData = {
-      batchId,
+    const eventPayload = {
+      batchNumber: batchId,
       role: "Distributor",
-      location,
-      previousHash,
-      timestamp: new Date()
+      location: location,
+      handlerDetails: handlerInfo,
+      timestamp: eventTimestamp,
+      previousHash: previousDataHashLink // Linking to previous data
     };
 
-    // Generate Signatures
-    const dataHash = calculateHash(eventData);
-    const signature = signData(eventData, process.env.SECRET_KEY);
+    // 5. 🔐 Cryptographic Operations
+    
+    // A. Generate Data Hash for this specific event
+    const currentDataHash = calculateHash(eventPayload);
 
-    // Add to Chain
+    // B. Generate Chain Hash (The "Block" Link)
+    // ChainHash = SHA256( PreviousChainHash + CurrentDataHash )
+    const currentChainHash = generateChainHash(previousChainHash, currentDataHash);
+
+    // C. Generate HMAC Signature (Proof of Origin)
+    const hmacSig = generateHMACSignature({
+        batchNumber: batchId,
+        dataHash: currentDataHash,
+        chainHash: currentChainHash,
+        timestamp: eventTimestamp,
+        role: "Distributor"
+    }, process.env.SECRET_KEY);
+
+    // D. Generate New QR Code (Updating the state of the batch)
+    const newQrCode = await generateQRCode(batchId, currentChainHash);
+
+    // 6. Push to Database
     batch.chain.push({
       role: "Distributor",
-      location,
-      timestamp: new Date(),
-      signature,
-      previousHash,
-      dataHash
+      location: location,
+      timestamp: eventTimestamp,
+      previousHash: previousDataHashLink,
+      dataHash: currentDataHash,
+      chainHash: currentChainHash,
+      signature: "VALID", // Placeholder or digital sig
+      hmacSignature: hmacSig,
+      qrCode: newQrCode,
+      handlerDetails: handlerInfo
     });
 
     await batch.save();
-    console.log("✅ Batch Updated Successfully!");
-    res.json({ success: true, message: "Batch verified and logged on blockchain!", dataHash });
+    
+    console.log(`✅ Distributor Update Success: ${batchId} at ${location}`);
+    res.json({ 
+        success: true, 
+        message: "Batch received and chain updated", 
+        txHash: currentChainHash 
+    });
 
   } catch (error) {
-    console.error("❌ Distributor Error:", error);
+    console.error("❌ Distributor Controller Error:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 };

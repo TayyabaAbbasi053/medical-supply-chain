@@ -1,39 +1,111 @@
-// ============================================================
-// PHARMACY MODULE - Controllers
-// ============================================================
-// Implement pharmacy functionality here:
-// - QR scan & full hash-chain verification
-// - Inventory update
-// - Dispense to patient
-// - Add prescription details
-// - Log event in chain
-// - Backup operations
-// ============================================================
+const Batch = require('../../../models/Batch');
+const { 
+  calculateHash, 
+  signData, 
+  encryptData, 
+  validateChain 
+} = require('../../../utils/cryptoUtils');
 
-// TODO: Implement pharmacy batch receipt controller
-// exports.receiveBatch = async (req, res) => {
-//   // 1. Scan QR code
-//   // 2. Verify complete hash-chain
-//   // 3. Update inventory
-//   // 4. Create pharmacy event
-//   // 5. Sign with HMAC
-// };
+// --- 1. GET Batch Details (Preview History) ---
+exports.getBatchInfo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Robust Search
+    const batch = await Batch.findOne({ 
+        $or: [ { batchId: id }, { batchNumber: id } ]
+    });
 
-// TODO: Implement batch dispense controller
-// exports.dispenseBatch = async (req, res) => {
-//   // 1. Verify patient prescription
-//   // 2. Log dispense event
-//   // 3. Update inventory
-//   // 4. Mark batch as complete
-// };
+    if (!batch) return res.status(404).json({ success: false, error: "Batch not found" });
 
-// TODO: Implement batch add prescription
-// exports.addPrescription = async (req, res) => {
-//   // Encrypt and add prescription to batch
-// };
+    // Extract Distributor History from the Chain
+    const distributionHistory = batch.chain
+      .filter(event => event.role === "Distributor")
+      .map(event => ({
+        handler: event.handlerDetails || "Unknown",
+        location: event.location,
+        date: event.timestamp
+      }));
 
-module.exports = {
-  // receiveBatch,
-  // dispenseBatch,
-  // addPrescription
+    res.json({
+        success: true,
+        medicineName: batch.medicineName,
+        manufacturerName: batch.manufacturerName,
+        quantity: batch.quantityProduced || batch.quantity,
+        expiryDate: batch.expiryDate,
+        isComplete: batch.isComplete,
+        history: distributionHistory // Sending list of distributors to frontend
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// --- 2. DISPENSE (Verify Chain + Encrypt Rx) ---
+exports.dispenseMedicine = async (req, res) => {
+  try {
+    const { batchId, prescription } = req.body;
+
+    const batch = await Batch.findOne({ 
+        $or: [ { batchId: batchId }, { batchNumber: batchId } ]
+    });
+
+    if (!batch) return res.status(404).json({ success: false, error: "Batch not found" });
+
+    // 🛡️ SECURITY: Validate Chain Integrity
+    // If a hacker changed a Distributor's location in the DB, this fails.
+    const isChainValid = validateChain(batch.chain);
+    if (!isChainValid) {
+        console.error(`🚨 TAMPERING DETECTED in Pharmacy for Batch ${batchId}`);
+        return res.status(403).json({ 
+            success: false, 
+            error: "CRITICAL: Supply Chain Integrity Compromised! Do not dispense." 
+        });
+    }
+
+    if (!prescription) {
+        return res.status(400).json({ success: false, error: "Prescription is required" });
+    }
+
+    // 1. Encrypt Prescription (Privacy)
+    const encryptedRx = encryptData(prescription);
+
+    // 2. Prepare Block Data
+    const lastBlock = batch.chain[batch.chain.length - 1];
+    const previousHash = lastBlock ? lastBlock.dataHash : "GENESIS";
+    
+    const eventData = {
+      batchId,
+      role: "Pharmacy",
+      location: "Dispensed to Patient",
+      previousHash,
+      timestamp: new Date()
+    };
+
+    // 3. Generate Crypto Signatures
+    const dataHash = calculateHash(eventData);
+    const signature = signData(eventData, process.env.SECRET_KEY);
+
+    // 4. Update Database
+    batch.chain.push({
+      role: "Pharmacy",
+      location: "Dispensed to Patient",
+      timestamp: new Date(),
+      signature,
+      previousHash,
+      dataHash
+    });
+
+    batch.prescriptionEncrypted = encryptedRx;
+    batch.isComplete = true; // Locks the batch
+
+    await batch.save();
+    console.log(`✅ Pharmacy Dispensed: ${batchId}`);
+    
+    res.json({ success: true, message: "Medicine dispensed & Data Encrypted", dataHash });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 };
