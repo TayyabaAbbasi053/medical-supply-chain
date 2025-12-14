@@ -164,7 +164,11 @@ export default function Login() {
               </>
             )}
 
-            {/<input
+            {questionStage && (
+              <>
+                <p style={styles.questionText}>{securityQuestion}</p>
+
+                <input
                   placeholder="Your Answer"
                   style={styles.input}
                   onChange={(e) => setSecurityAnswer(e.target.value)}
@@ -175,11 +179,6 @@ export default function Login() {
                 </button>
               </>
             )}
-
-            <p style={styles.bottomText}>
-              Don't have an account?{" "}
-              <a href="/register" style={styles.link}>Register</a>
-            </p>
           </div>
         </div>
       </div>
