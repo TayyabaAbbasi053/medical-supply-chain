@@ -122,13 +122,7 @@ export default function Login() {
               ← Back
             </button>
             <h2 style={styles.heading}>Login {selectedRole && `- ${selectedRole}`}</h2>
-            <p style={styles.subheading}>Access your account with 3-Factor Authentication
-          </div>
-
-          {/* RIGHT PANEL */}
-          <div style={styles.rightPanel}>
-            <h2 style={styles.heading}>Login</h2>
-            <p style={styles.subheading}>Access your account</p>
+            <p style={styles.subheading}>Access your account with 3-Factor Authentication</p>
 
             {message && <p style={styles.msg}>{message}</p>}
 
