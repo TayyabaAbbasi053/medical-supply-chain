@@ -216,8 +216,3 @@ export default function Distributor() {
     </div>
   );
 }
-
-function DistributorOld() {
-  const [batchId, setBatchId] = useState('');
-  const [location, setLocation] = useState('Regional Warehouse');
-  const [message, setMessage] = useState(null);
