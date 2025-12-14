@@ -1,20 +1,10 @@
-// ============================================================
-// DISTRIBUTOR MODULE - Routes
-// ============================================================
-// Implement distributor routes here:
-// - POST /api/modules/distributor/update-batch
-// - POST /api/modules/distributor/dispatch
-// - POST /api/modules/distributor/location-update
-// ============================================================
-
-const express = require("express");
-// const batchController = require("../controllers/batchController");
-
+const express = require('express');
 const router = express.Router();
+const batchController = require('../controllers/batchController');
 
-// TODO: Implement distributor routes
-// router.post("/update-batch", batchController.updateBatch);
-// router.post("/dispatch", batchController.dispatchBatch);
-// router.post("/location-update", batchController.updateLocation);
+console.log("✅ Distributor Routes Loaded"); // <--- ADD THIS LINE
+
+// Specific endpoint for receiving goods
+router.post('/receive', batchController.receiveBatch);
 
 module.exports = router;

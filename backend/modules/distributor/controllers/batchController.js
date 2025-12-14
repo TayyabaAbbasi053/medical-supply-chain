@@ -1,39 +1,66 @@
-// ============================================================
-// DISTRIBUTOR MODULE - Controllers
-// ============================================================
-// Implement distributor functionality here:
-// - QR scan & verification
-// - Hash-chain verification
-// - Location/tamper check
-// - Append new event to chain
-// - Generate HMAC signature
-// - Dispatch to pharmacy
-// ============================================================
+const Batch = require('../../../models/Batch');
+const { calculateHash, signData } = require('../../../utils/cryptoUtils');
 
-// TODO: Implement distributor batch update controller
-// exports.updateBatch = async (req, res) => {
-//   // 1. Scan QR code (extract batchId + chainHash)
-//   // 2. Verify hash-chain integrity
-//   // 3. Check location and tamper status
-//   // 4. Append new event to batch.chain
-//   // 5. Generate new chainHash using previous chainHash
-//   // 6. Create HMAC signature for distributor event
-//   // 7. Save updated batch
-//   // 8. Return response with new chain status
-// };
+exports.receiveBatch = async (req, res) => {
+  try {
+    const { batchId, location } = req.body;
 
-// TODO: Implement batch dispatch controller
-// exports.dispatchBatch = async (req, res) => {
-//   // Prepare batch for dispatch to pharmacy
-// };
+    console.log(`📦 Distributor receiving batch: ${batchId}`);
 
-// TODO: Implement batch location update
-// exports.updateLocation = async (req, res) => {
-//   // Update distributor location
-// };
+    // 🔍 FIX 1: Search for EITHER 'batchId' OR 'batchNumber'
+    const batch = await Batch.findOne({ 
+        $or: [
+            { batchId: batchId }, 
+            { batchNumber: batchId } 
+        ]
+    });
 
-module.exports = {
-  // updateBatch,
-  // dispatchBatch,
-  // updateLocation
+    if (!batch) {
+      console.log("❌ Batch not found in DB");
+      return res.status(404).json({ success: false, error: "Batch not found" });
+    }
+
+    // 🔍 FIX 2: Ensure the chain array exists (Your screenshot shows a different schema)
+    if (!batch.chain) {
+        batch.chain = []; 
+    }
+
+    // Get Previous Hash (Handle case where chain is empty)
+    let previousHash = "GENESIS";
+    if (batch.chain.length > 0) {
+        const lastBlock = batch.chain[batch.chain.length - 1];
+        previousHash = lastBlock.dataHash || "UNKNOWN_HASH";
+    }
+
+    // Prepare Event Data
+    const eventData = {
+      batchId,
+      role: "Distributor",
+      location,
+      previousHash,
+      timestamp: new Date()
+    };
+
+    // Generate Signatures
+    const dataHash = calculateHash(eventData);
+    const signature = signData(eventData, process.env.SECRET_KEY);
+
+    // Add to Chain
+    batch.chain.push({
+      role: "Distributor",
+      location,
+      timestamp: new Date(),
+      signature,
+      previousHash,
+      dataHash
+    });
+
+    await batch.save();
+    console.log("✅ Batch Updated Successfully!");
+    res.json({ success: true, message: "Batch received and location updated", dataHash });
+
+  } catch (error) {
+    console.error("❌ Distributor Error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 };
