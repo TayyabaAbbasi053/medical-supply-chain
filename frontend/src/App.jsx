@@ -11,8 +11,8 @@ import Home from "./pages/Home";
 import Manufacturer from "./pages/Manufacturer";
 import Distributor from "./pages/Distributor";
 import Patient from "./pages/Patient";
-import Pharmacy from './pages/Pharmacy'; 
-
+import Pharmacy from './pages/Pharmacy';
+import Admin from './pages/Admin';
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -30,7 +30,8 @@ function Layout() {
     location.pathname === "/manufacturer" ||
     location.pathname === "/distributor" ||
     location.pathname === "/patient" ||
-    location.pathname === "/pharmacy";
+    location.pathname === "/pharmacy" ||
+    location.pathname === "/admin";
 
   return (
     <div className="app-container">
@@ -63,6 +64,7 @@ function Layout() {
           <Route path="/distributor" element={<Distributor />} />
           <Route path="/patient" element={<Patient />} />
           <Route path="/pharmacy" element={<Pharmacy />} />
+          <Route path="/admin" element={<Admin />} />
 
           {/* DEFAULT FALLBACK */}
           <Route path="*" element={<Home />} />

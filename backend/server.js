@@ -15,16 +15,21 @@ try {
     const authRoutes = require('./routes/auth');
     app.use("/api/auth", authRoutes);
     
-    console.log("2. Loading Manufacturer Routes...");
+    console.log("2. Loading Admin Routes...");
+    const adminRoutes = require('./routes/admin');
+    app.use("/api/admin", adminRoutes);
+    console.log("✅ Admin Routes Loaded Successfully into App");
+    
+    console.log("3. Loading Manufacturer Routes...");
     const manufacturerRoutes = require('./modules/manufacturer/routes/batchRoutes');
     app.use("/api/modules/manufacturer", manufacturerRoutes);
 
-    console.log("3. Loading Distributor Routes...");
+    console.log("4. Loading Distributor Routes...");
     const distributorRoutes = require('./modules/distributor/routes/batchRoutes');
     app.use('/api/distributor', distributorRoutes);
     console.log("✅ hyDistributor Routes Loaded Successfully into App");
 
-    console.log("4. Loading Pharmacy Routes...");
+    console.log("5. Loading Pharmacy Routes...");
     const pharmacyRoutes = require('./modules/pharmacy/routes/batchRoutes');
     app.use('/api/pharmacy', pharmacyRoutes);
     console.log("✅ Pharmacy Routes Loaded Successfully into App");

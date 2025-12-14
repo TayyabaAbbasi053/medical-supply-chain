@@ -24,4 +24,15 @@ async function sendOTP(email, otp) {
     await transporter.sendMail(mailOptions);
 }
 
-module.exports = { sendOTP };
+async function sendEmail(email, subject, htmlBody) {
+    const mailOptions = {
+        from: `"Medical Supply Chain" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: subject,
+        html: htmlBody
+    };
+
+    await transporter.sendMail(mailOptions);
+}
+
+module.exports = { sendOTP, sendEmail };

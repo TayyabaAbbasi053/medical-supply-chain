@@ -161,13 +161,7 @@ exports.createBatch = async (req, res) => {
       security: {
         dataHash: dataHash,
         chainHash: chainHash,
-        hmacSignature: hmacSignature,
-        qrCode: {
-          dataURL: qrCodeDataURL,
-          content: `${batchNumber}|${chainHash}`,
-          width: 300,
-          height: 300
-        }
+        hmacSignature: hmacSignature
       },
       genesisEvent: {
         role: genesisEvent.role,

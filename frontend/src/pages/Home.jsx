@@ -74,6 +74,19 @@ export default function Home() {
             </button>
           </div>
         ))}
+
+        {/* Admin Card - Direct Access */}
+        <div style={styles.card}>
+          <div style={{...styles.iconBadge, background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'}}>🛡️</div>
+          <h3 style={styles.cardTitle}>Admin</h3>
+          <p style={styles.cardDescription}>Register manufacturers, distributors, and pharmacists.</p>
+          <button
+            onClick={() => navigate('/admin')}
+            style={{...styles.button, background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'}}
+          >
+            Admin Panel
+          </button>
+        </div>
       </div>
     </div>
   );

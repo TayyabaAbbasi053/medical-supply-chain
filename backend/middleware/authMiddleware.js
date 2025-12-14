@@ -3,8 +3,8 @@ const User = require("../models/user");
 // Middleware to verify user is logged in and has correct role
 const authenticateUser = async (req, res, next) => {
     try {
-        // Get user info from request headers or body
-        const { email, role } = req.body;
+        // Get user info from request - check body first, then query params
+        let email = req.body?.email || req.query?.email || req.headers['x-admin-email'];
         
         if (!email) {
             return res.status(401).json({ error: "Email required for authentication" });
@@ -82,10 +82,24 @@ const requirePatient = (req, res, next) => {
     next();
 };
 
+// Middleware to check if user is an Admin
+const requireAdmin = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ error: "Please login first" });
+    }
+
+    if (req.user.role !== "Admin") {
+        return res.status(403).json({ error: "Only admins can access this resource" });
+    }
+
+    next();
+};
+
 module.exports = {
     authenticateUser,
     requireManufacturer,
     requireDistributor,
     requirePharmacist,
-    requirePatient
+    requirePatient,
+    requireAdmin
 };

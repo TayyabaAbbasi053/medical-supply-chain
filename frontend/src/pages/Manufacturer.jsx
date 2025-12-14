@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import QRCode from 'react-qr-code';
 
 export default function Manufacturer() {
   const [formData, setFormData] = useState({ 
@@ -14,7 +13,6 @@ export default function Manufacturer() {
     expiryDate: '',
     manufacturerName: ''
   });
-  const [qrValue, setQrValue] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(true);
@@ -114,7 +112,6 @@ export default function Manufacturer() {
 
       const res = await axios.post('http://localhost:5000/api/modules/manufacturer/create-batch', batchData);
       if(res.data.success) {
-        setQrValue(formData.batchNumber);
         alert('✅ Batch Created Successfully!');
         setFormData({ 
           batchNumber: '',
@@ -171,10 +168,9 @@ export default function Manufacturer() {
             </div>
           </div>
 
-          {/* Two-Column Layout: Form on Left, QR on Right */}
+          {/* Form */}
           <div style={styles.contentWrapper}>
-            {/* LEFT COLUMN: Form */}
-            <div style={styles.leftColumn}>
+            <div style={styles.formWrapper}>
               <form style={styles.form}>
                 {/* Row 1: Batch Number & Medicine Name */}
                 <div style={styles.formRow}>
@@ -307,24 +303,6 @@ export default function Manufacturer() {
                 </div>
               </form>
             </div>
-
-            {/* RIGHT COLUMN: QR Code & Info */}
-            <div style={styles.rightColumn}>
-              {qrValue ? (
-                <div style={styles.qrCard}>
-                  <h3 style={styles.qrTitle}>✅ Batch Created</h3>
-                  <div style={styles.qrContainer}>
-                    <QRCode value={qrValue} size={150} />
-                  </div>
-                  <p style={styles.qrInfo}>{qrValue}</p>
-                </div>
-              ) : (
-                <div style={styles.emptyState}>
-                  <div style={styles.emptyIcon}>📦</div>
-                  <p style={styles.emptyText}>Fill form and create batch to generate QR code</p>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>
@@ -409,22 +387,10 @@ const styles = {
     },
   },
 
-  leftColumn: {
+  formWrapper: {
     flex: 1,
     overflow: 'auto',
     paddingRight: '8px',
-  },
-
-  rightColumn: {
-    flex: '0 0 280px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    '@media (max-width: 768px)': {
-      flex: 'none',
-      width: '100%',
-    },
   },
 
   form: {
@@ -503,67 +469,6 @@ const styles = {
     fontWeight: '600',
     transition: 'all 0.3s ease',
     whiteSpace: 'nowrap',
-  },
-
-  qrCard: {
-    background: 'linear-gradient(135deg, #f0f4f8 0%, #f9fafb 100%)',
-    border: '1px solid #e0e7ff',
-    borderRadius: '8px',
-    padding: '20px',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-
-  qrTitle: {
-    margin: '0 0 12px 0',
-    color: '#1f2937',
-    fontSize: '0.9rem',
-    fontWeight: '700',
-  },
-
-  qrContainer: {
-    padding: '12px',
-    background: 'white',
-    borderRadius: '6px',
-    marginBottom: '12px',
-    border: '1px solid #e5e7eb',
-  },
-
-  qrInfo: {
-    margin: '0',
-    color: '#6b7280',
-    fontSize: '0.7rem',
-    wordBreak: 'break-all',
-  },
-
-  emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    padding: '20px',
-    background: 'linear-gradient(135deg, #f0f4f8 0%, #f9fafb 100%)',
-    border: '1px dashed #cbd5e1',
-    borderRadius: '8px',
-  },
-
-  emptyIcon: {
-    fontSize: '2.5rem',
-    marginBottom: '12px',
-    opacity: '0.5',
-  },
-
-  emptyText: {
-    margin: '0',
-    color: '#6b7280',
-    fontSize: '0.8rem',
-    textAlign: 'center',
-    lineHeight: '1.4',
   },
 
   loadingContainer: {
