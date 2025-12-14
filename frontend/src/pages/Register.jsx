@@ -1,20 +1,27 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 export default function Register() {
+  const navigate = useNavigate();
+  
+  // Force Patient role - only patients can register
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
-    role: "",
+    role: "Patient", // Fixed to Patient
     securityAnswer: ""
   });
 
   const [msg, setMsg] = useState("");
   const FIXED_QUESTION = "What is the name of your pet?";
 
-  const handleChange = (e) =>
+  const handleChange = (e) => {
+    // Don't allow changing role
+    if (e.target.name === "role") return;
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,7 +33,10 @@ export default function Register() {
         payload
       );
 
-      if (res.data.success) setMsg("✅ Registered Successfully!");
+      if (res.data.success) {
+        setMsg("✅ Registered Successfully! Redirecting...");
+        setTimeout(() => navigate("/login?role=Patient"), 2000);
+      }
     } catch (err) {
       setMsg("❌ " + (err.response?.data?.error || "Registration failed"));
     }
@@ -79,18 +89,14 @@ export default function Register() {
                 required
               />
 
-              {/* ✨ MAROON DROPDOWN */}
+              {/* ✨ ROLE - FIXED TO PATIENT */}
               <select
                 name="role"
-                onChange={handleChange}
-                style={styles.select}
-                required
+                value="Patient"
+                disabled
+                style={{...styles.select, opacity: 0.8, cursor: 'not-allowed'}}
               >
-                <option value="">Select Role</option>
-                <option>Manufacturer</option>
-                <option>Distributor</option>
-                <option>Pharmacist</option>
-                <option>Patient</option>
+                <option>Patient (Only Patients Can Register)</option>
               </select>
 
               <label style={styles.label}>{FIXED_QUESTION}</label>

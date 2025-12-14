@@ -7,6 +7,7 @@ import {
   useLocation
 } from "react-router-dom";
 
+import Home from "./pages/Home";
 import Manufacturer from "./pages/Manufacturer";
 import Distributor from "./pages/Distributor";
 import Patient from "./pages/Patient";
@@ -21,10 +22,15 @@ import "./App.css";
 function Layout() {
   const location = useLocation();
 
-  // Hide navbar on login and register pages
+  // Hide navbar on login, register, home, and dashboard pages
   const hideNavbar =
     location.pathname === "/login" ||
-    location.pathname === "/register";
+    location.pathname === "/register" ||
+    location.pathname === "/" ||
+    location.pathname === "/manufacturer" ||
+    location.pathname === "/distributor" ||
+    location.pathname === "/patient" ||
+    location.pathname === "/pharmacy";
 
   return (
     <div className="app-container">
@@ -46,7 +52,7 @@ function Layout() {
 
       <div className="content">
         <Routes>
-          <Route path="/" element={<div></div>} />
+          <Route path="/" element={<Home />} />
 
           {/* AUTH PAGES */}
           <Route path="/login" element={<Login />} />
@@ -59,7 +65,7 @@ function Layout() {
           <Route path="/pharmacy" element={<Pharmacy />} />
 
           {/* DEFAULT FALLBACK */}
-          <Route path="*" element={<Login />} />
+          <Route path="*" element={<Home />} />
         </Routes>
       </div>
     </div>
