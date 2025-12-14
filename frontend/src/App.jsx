@@ -13,6 +13,7 @@ import Distributor from "./pages/Distributor";
 import Patient from "./pages/Patient";
 
 import Login from "./pages/Login";
+import PatientRegister from "./pages/PatientRegister";
 
 import "./App.css";
 
@@ -22,6 +23,7 @@ function Layout() {
   // Hide navbar on login and home pages
   const hideNavbar =
     location.pathname === "/login" ||
+    location.pathname === "/register-patient" ||
     location.pathname === "/";
 
   return (
@@ -45,8 +47,9 @@ function Layout() {
         <Routes>
           <Route path="/" element={<Home />} />
 
-          {/* AUTH PAGE */}
+          {/* AUTH PAGES */}
           <Route path="/login" element={<Login />} />
+          <Route path="/register-patient" element={<PatientRegister />} />
 
           {/* DASHBOARDS */}
           <Route path="/manufacturer" element={<Manufacturer />} />

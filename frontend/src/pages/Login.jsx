@@ -181,10 +181,18 @@ export default function Login() {
             )}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
+
+        {/* Patient-Only Registration Link */}
+        {selectedRole === "Patient" && (
+          <div style={styles.registerSection}>
+            <p style={styles.registerText}>
+              Don't have an account?{" "}
+              <a href="/register-patient" style={styles.registerLink}>
+                Create Patient Account
+              </a>
+            </p>
+          </div>
+        )}
 
 /* ------------------ MATCHING REGISTER STYLES ------------------ */
 
@@ -323,6 +331,27 @@ const styles = {
     border: "none",
     borderRadius: "8px",
     fontSize: "16px",
+    cursor: "pointer",
+  },
+
+  registerSection: {
+    marginTop: "20px",
+    textAlign: "center",
+    padding: "15px",
+    background: "rgba(255, 255, 255, 0.8)",
+    borderRadius: "8px",
+  },
+
+  registerText: {
+    fontSize: "14px",
+    color: MAROON,
+    margin: 0,
+  },
+
+  registerLink: {
+    color: DEEP_MAROON,
+    fontWeight: "700",
+    textDecoration: "none",
     cursor: "pointer",
   },
 };
