@@ -62,8 +62,9 @@ export default function Login() {
       setTimeout(() => {
         if (res.data.role === "Manufacturer") window.location.href = "/manufacturer";
         else if (res.data.role === "Distributor") window.location.href = "/distributor";
-        else if (res.data.role === "Pharmacist") window.location.href = "/pharmacist";
+        else if (res.data.role === "Pharmacist") window.location.href = "/pharmacy";
         else if (res.data.role === "Patient") window.location.href = "/patient";
+        else if (res.data.role === "Pharmacy" || res.data.role === "Pharmacist") window.location.href = "/pharmacy";
       }, 1000);
     } catch (err) {
       setMessage("❌ Security answer failed");

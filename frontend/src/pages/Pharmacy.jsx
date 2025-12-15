@@ -19,6 +19,7 @@ export default function Pharmacy() {
   const [prescription, setPrescription] = useState('');
   const [batchDetails, setBatchDetails] = useState(null);
   const [message, setMessage] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Check if user is logged in
   useEffect(() => {
@@ -28,7 +29,7 @@ export default function Pharmacy() {
       const is3FAVerified = localStorage.getItem('is3FAVerified');
       const loginTimestamp = localStorage.getItem('loginTimestamp');
       
-      if (loggedInEmail && loggedInRole === 'Pharmacist' && is3FAVerified === 'true') {
+      if (loggedInEmail && (loggedInRole === 'Pharmacy' || loggedInRole === 'Pharmacist') && is3FAVerified === 'true') {
         if (loginTimestamp) {
           const now = Date.now();
           const elapsed = now - parseInt(loginTimestamp);
@@ -107,20 +108,20 @@ export default function Pharmacy() {
       }
     } catch (err) {
       setBatchDetails(null);
-      if(err.response?.status === 404) {
-          setMessage({ type: 'error', text: '⚠️ Batch not found in system.' });
-      }
+      // Optional: don't show error immediately while typing
     }
   };
 
   // 2. Dispense Logic
-  const handleDispense = async () => {
+  const handleDispense = async (e) => {
+    e.preventDefault(); // Prevent default form submit
     if (!batchId || !prescription) {
       setMessage({ type: 'error', text: '❌ Prescription is required.' });
       return;
     }
 
     try {
+      setIsLoading(true);
       setMessage({ type: 'info', text: '🔐 Verifying Chain & Encrypting...' });
       
       const res = await axios.post('http://localhost:5000/api/pharmacy/dispense', {
@@ -131,9 +132,13 @@ export default function Pharmacy() {
       if (res.data.success) {
         setMessage({ type: 'success', text: '✅ Success! Medicine Dispensed.' });
         setPrescription('');
+        // Refresh details to show "CLOSED" status
+        searchBatch(batchId);
       }
     } catch (err) {
       setMessage({ type: 'error', text: '❌ Error: ' + (err.response?.data?.error || err.message) });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -170,6 +175,7 @@ export default function Pharmacy() {
               <h1 style={styles.formTitle}>Pharmacy Dashboard</h1>
               <p style={styles.formDesc}>Verify authenticity & dispense medicine</p>
             </div>
+            <button onClick={handleLogout} style={{marginLeft: 'auto', padding: '8px 12px', fontSize: '0.8rem', cursor: 'pointer', background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: '4px'}}>Logout</button>
           </div>
 
           <div style={styles.contentWrapper}>
@@ -206,11 +212,11 @@ export default function Pharmacy() {
                 )}
 
                 <div style={styles.buttonGroup}>
-                  <button onClick={handleDispense} disabled={!batchDetails || batchDetails.isComplete} style={styles.submitBtn}>
-                    {batchDetails?.isComplete ? 'Batch Closed' : 'Dispense Medicine'}
+                  <button onClick={handleDispense} disabled={!batchDetails || batchDetails.isComplete || isLoading} style={styles.submitBtn}>
+                    {isLoading ? '⏳ Processing...' : (batchDetails?.isComplete ? 'Batch Closed' : 'Dispense Medicine')}
                   </button>
-                  <button type="button" onClick={() => window.history.back()} style={styles.cancelBtn}>
-                    Cancel
+                  <button type="button" onClick={() => { setBatchId(''); setBatchDetails(null); setMessage(null); setPrescription(''); }} style={styles.cancelBtn}>
+                    Reset
                   </button>
                 </div>
               </form>
@@ -344,6 +350,15 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '16px',
+  },
+
+  formRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '16px',
+    '@media (max-width: 768px)': {
+      gridTemplateColumns: '1fr',
+    },
   },
 
   formGroup: {

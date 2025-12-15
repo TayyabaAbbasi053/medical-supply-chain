@@ -111,7 +111,11 @@ export default function Distributor() {
       // Call the new GET endpoint
       const res = await axios.get(`http://localhost:5000/api/distributor/search/${id}`);
       if(res.data.success) {
-        setBatchDetails(res.data);
+        // Map backend 'currentLocation' to UI 'currentStatus'
+        setBatchDetails({
+            ...res.data,
+            currentStatus: res.data.currentLocation // Mapping for UI compatibility
+        });
       }
     } catch (err) {
       setBatchDetails(null); // Clear details if not found
@@ -119,8 +123,10 @@ export default function Distributor() {
   };
 
   // 2. Function to Submit Update
-  const handleReceive = async () => {
-    if (!batchId || !distributorName || !phone) {
+  const handleReceive = async (e) => {
+    e.preventDefault(); // Prevent form reload
+    
+    if (!batchId || !distributorName || !phone || !location) {
       setMessage({ type: 'error', text: '❌ All fields are required!' });
       return;
     }
@@ -137,14 +143,14 @@ export default function Distributor() {
       });
 
       if (res.data.success) {
-        setMessage({ type: 'success', text: '✅ Batch Logged Successfully!' });
+        setMessage({ type: 'success', text: '✅ Batch Verified & Logged Successfully!' });
         setTimeout(() => {
           setBatchId('');
           setDistributorName('');
           setPhone('');
           setBatchDetails(null);
           setMessage(null);
-        }, 2000);
+        }, 3000);
       }
     } catch (err) {
       setMessage({ type: 'error', text: '❌ Error: ' + (err.response?.data?.error || "Connection Failed") });
@@ -186,6 +192,7 @@ export default function Distributor() {
               <h1 style={styles.formTitle}>Distributor Dashboard</h1>
               <p style={styles.formDesc}>Receive and forward goods</p>
             </div>
+            <button onClick={handleLogout} style={{marginLeft: 'auto', padding: '8px 12px', fontSize: '0.8rem', cursor: 'pointer', background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: '4px'}}>Logout</button>
           </div>
 
           <div style={styles.contentWrapper}>
@@ -244,8 +251,8 @@ export default function Distributor() {
                   <button onClick={handleReceive} disabled={!batchDetails || isLoading} style={styles.submitBtn}>
                     {isLoading ? '⏳ Processing...' : 'Confirm Receipt & Update'}
                   </button>
-                  <button type="button" onClick={() => window.history.back()} style={styles.cancelBtn}>
-                    Cancel
+                  <button type="button" onClick={() => { setBatchId(''); setBatchDetails(null); setMessage(null); }} style={styles.cancelBtn}>
+                    Reset
                   </button>
                 </div>
               </form>
@@ -260,7 +267,7 @@ export default function Distributor() {
                     <div style={{marginBottom: '6px'}}><strong>Medicine:</strong> {batchDetails.medicineName}</div>
                     <div style={{marginBottom: '6px'}}><strong>Quantity:</strong> {batchDetails.quantity}</div>
                     <div style={{marginBottom: '6px'}}><strong>Manufacturer:</strong> {batchDetails.manufacturerName}</div>
-                    <div><strong>Status:</strong> {batchDetails.currentStatus}</div>
+                    <div><strong>Last Location:</strong> {batchDetails.currentStatus}</div>
                   </div>
                   <div style={{padding: '12px', background: 'white', borderRadius: '6px', border: '1px solid #e5e7eb'}}>
                     <QRCode value={batchId} size={150} />

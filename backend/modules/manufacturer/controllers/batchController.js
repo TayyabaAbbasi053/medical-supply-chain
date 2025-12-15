@@ -1,257 +1,156 @@
-const Batch = require("../../../models/Batch");
-const {
-  generateDataHash,
-  generateChainHash,
-  generateHMACSignature,
-  encryptData,
-  generateQRCode
-} = require("../../../shared/utils/cryptoUtils");
+const Batch = require('../../../models/Batch');
+const { 
+  calculateHash, 
+  signData, 
+  encryptData, 
+  createCanonicalPayload, // 👈 CRITICAL: Ensures hash matches Validator
+  generateChainHash, 
+  generateHMACSignature 
+} = require('../../../utils/cryptoUtils');
 
-// Create Batch Controller
+// --- Create New Batch (Genesis Block) ---
 exports.createBatch = async (req, res) => {
   try {
+    if (!req.body) {
+        return res.status(400).json({ error: "Request body is missing" });
+    }
+
     const {
-      // � PLAINTEXT IDENTIFIER
-      batchNumber,
-      
-      // 🔐 ENCRYPTED FIELDS
+      batchNumber, // or batchId
       strength,
       quantityProduced,
       distributorId,
       dispatchDate,
-      
-      // 🔓 PUBLIC FIELDS
       medicineName,
       manufacturingDate,
       expiryDate,
       manufacturerName,
-      
       location = "Factory Output"
     } = req.body;
 
-    // Get authenticated user
-    const authenticatedUser = req.user;
-
-    // Validation - ALL fields are required
-    if (!batchNumber || !strength || !quantityProduced || !distributorId || !dispatchDate || 
-        !medicineName || !manufacturingDate || !expiryDate || !manufacturerName) {
-      return res.status(400).json({
-        error: "All fields are required. Plaintext: batchNumber. Encrypted: strength, quantityProduced, distributorId, dispatchDate. Public: medicineName, manufacturingDate, expiryDate, manufacturerName"
-      });
+    // 1. Basic Validation
+    if (!batchNumber || !quantityProduced || !medicineName) {
+        return res.status(400).json({ error: "Missing required fields (Batch Number, Quantity, Name)" });
     }
 
-    // Check if batch already exists
-    const existingBatch = await Batch.findOne({ batchNumber });
-    if (existingBatch) {
-      return res.status(400).json({ error: "Batch Number already exists" });
+    // 2. Check for Duplicates
+    const existing = await Batch.findOne({ 
+        $or: [{ batchNumber: batchNumber }, { batchId: batchNumber }] 
+    });
+    if (existing) {
+        return res.status(400).json({ error: "Batch ID/Number already exists in database" });
     }
 
-    // 🔓 PUBLIC BATCH DATA (Not encrypted - accessible to all)
-    // NORMALIZE DATES TO ISO STRINGS FOR CONSISTENT HASHING
-    const publicBatchData = {
-      batchNumber,
-      medicineName,
-      manufacturingDate: manufacturingDate instanceof Date 
-        ? manufacturingDate.toISOString() 
-        : new Date(manufacturingDate).toISOString(),
-      expiryDate: expiryDate instanceof Date 
-        ? expiryDate.toISOString() 
-        : new Date(expiryDate).toISOString(),
-      manufacturerName
+    // 3. Format Data Types (CRITICAL FOR HASH CONSISTENCY)
+    // The Validator expects 'quantity' to be a Number, not a String "100"
+    const quantityNum = Number(quantityProduced); 
+    const mfgDateISO = new Date(manufacturingDate).toISOString();
+    const expDateISO = new Date(expiryDate).toISOString();
+    const eventTimestamp = new Date();
+
+    // 4. Prepare Raw Data for Hashing
+    // We construct the object exactly how the 'createCanonicalPayload' helper expects it
+    const rawGenesisData = {
+        batchNumber: batchNumber,
+        medicineName: medicineName,
+        manufacturerName: manufacturerName,
+        quantity: quantityNum,
+        manufacturingDate: mfgDateISO, 
+        expiryDate: expDateISO,        
+        timestamp: eventTimestamp,
+        role: "Manufacturer"
     };
 
-    // 🔐 SENSITIVE DATA TO ENCRYPT (Only manufacturer knows this)
-    // NOTE: batchNumber is NOT encrypted (needed for QR codes and patient verification)
+    // 5. Generate the "Truth" Hash
+    // This normalizes dates, sorts keys, and creates the SHA256 hash
+    const payloadForHashing = createCanonicalPayload(rawGenesisData, batchNumber);
+    const dataHash = calculateHash(payloadForHashing); 
+
+    // 6. Create Genesis Chain Hash
+    // The first block doesn't have a previous hash, so we seed it.
+    const chainHash = generateChainHash("GENESIS_BLOCK_HASH", dataHash);
+
+    // 7. Generate HMAC Signature (Proof of Identity)
+    const hmacSignature = generateHMACSignature({
+        batchNumber, 
+        dataHash, 
+        chainHash, 
+        timestamp: eventTimestamp, 
+        role: "Manufacturer"
+    }, process.env.SECRET_KEY);
+
+    // 8. Encrypt Sensitive Business Data
+    // This data is hidden from the public/distributors
     const sensitiveData = {
-      strength,
-      quantityProduced,
-      distributorId,
-      dispatchDate,
-      manufacturerSignature: `MFG-SIG-${batchNumber}-${Date.now()}`,
-      timestamp: new Date()
+        strength, 
+        quantity: quantityNum, 
+        distributorId, 
+        dispatchDate,
+        manufacturerSignature: `MFG-${batchNumber}`
     };
+    const encryptedBatchDetails = encryptData(JSON.stringify(sensitiveData));
 
-    // AES Encryption - Encrypt all sensitive proprietary data
-    const sensitiveDataString = JSON.stringify(sensitiveData);
-    const encryptedBatchDetails = encryptData(sensitiveDataString);
-
-    // SHA-256 DataHash (based on PUBLIC data only)
-    const dataHash = generateDataHash(publicBatchData);
-
-    // Hash-Chain Generation (Genesis)
-    const previousChainHash = "GENESIS_BLOCK_HASH";
-    const chainHash = generateChainHash(previousChainHash, dataHash);
-
-    // HMAC Signature (includes manufacturer signature)
-    const eventData = {
-      batchNumber,
-      dataHash,
-      chainHash,
-      timestamp: new Date(),
-      role: "Manufacturer"
-    };
-
-    const hmacSignature = generateHMACSignature(eventData, process.env.SECRET_KEY);
-
-    // Genesis Event
-    const genesisEvent = {
-      role: "Manufacturer",
-      location: location,
-      timestamp: new Date(),
-      signature: hmacSignature,
-      previousHash: "GENESIS",
-      dataHash: dataHash,
-      chainHash: chainHash,
-      hmacSignature: hmacSignature,
-      encryptionStatus: "ENCRYPTED"
-    };
-
-    // Create Batch in Database
+    // 9. Save to Database
+    // ⚠️ IMPORTANT: We must save 'quantity', 'medicineName' inside the chain event.
+    // If we don't, the Distributor Validator will read 'undefined', hash it, 
+    // and fail the tamper check.
     const newBatch = new Batch({
-      batchNumber,
-      medicineName,
-      quantityProduced,
-      manufacturerName,
-      manufacturingDate,
-      expiryDate,
-      // 🔐 Encrypted sensitive data
+      batchNumber: batchNumber,
+      quantityProduced: quantityNum,
+      medicineName: medicineName, 
+      manufacturerName: manufacturerName,
+      manufacturingDate: mfgDateISO, 
+      expiryDate: expDateISO,
       batchDetails: encryptedBatchDetails,
-      // Security metadata
+      
+      // Metadata
       genesisDataHash: dataHash,
       genesisChainHash: chainHash,
-      chain: [genesisEvent],
       encryptionAlgorithm: "AES-256-ECB",
-      dataClassification: {
-        plaintext: ["batchNumber"],
-        encrypted: ["strength", "quantityProduced", "distributorId", "dispatchDate", "manufacturerSignature"],
-        public: ["medicineName", "manufacturingDate", "expiryDate", "manufacturerName"]
-      }
+      
+      // The Blockchain History
+      chain: [{
+        role: "Manufacturer",
+        location: location,
+        timestamp: eventTimestamp,
+        signature: hmacSignature, // Using HMAC as signature
+        previousHash: "GENESIS_BLOCK_HASH",
+        dataHash: dataHash,
+        chainHash: chainHash,
+        hmacSignature: hmacSignature,
+        
+        // 👇 CONTEXT FIELDS (Required for future Validation)
+        medicineName: medicineName,
+        manufacturerName: manufacturerName,
+        quantity: quantityNum,
+        manufacturingDate: mfgDateISO,
+        expiryDate: expDateISO
+      }]
     });
 
     await newBatch.save();
-
-    // Response Object
-    const dispatchResponse = {
-      success: true,
-      message: "Batch created successfully with encryption applied",
-      batch: {
-        // 🔓 PUBLIC DATA (visible in response)
-        batchNumber: newBatch.batchNumber,
-        medicineName: newBatch.medicineName,
-        manufacturingDate: newBatch.manufacturingDate,
-        expiryDate: newBatch.expiryDate,
-        manufacturerName: newBatch.manufacturerName,
-        status: "GENESIS_CREATED"
-      },
-      dataClassification: {
-        plaintext: {
-          fields: ["Batch Number"],
-          reason: "Needed for QR codes and patient verification"
-        },
-        encrypted: {
-          fields: ["Strength/Dosage", "Quantity Produced", "Distributor ID", "Dispatch Date", "Manufacturer Signature"],
-          algorithm: "AES-256-ECB",
-          status: "✅ ENCRYPTED"
-        },
-        public: {
-          fields: ["Medicine Name", "Manufacturing Date", "Expiry Date", "Manufacturer Name"],
-          status: "🔓 PUBLIC (Unencrypted)"
-        }
-      },
-      security: {
-        dataHash: dataHash,
-        chainHash: chainHash,
-        hmacSignature: hmacSignature
-      },
-      genesisEvent: {
-        role: genesisEvent.role,
-        location: genesisEvent.location,
-        timestamp: genesisEvent.timestamp,
-        signature: genesisEvent.signature,
-        chainHash: genesisEvent.chainHash
-      }
-    };
-
-    res.status(201).json(dispatchResponse);
-  } catch (error) {
-    console.error("Batch Creation Error:", error);
-    res.status(500).json({
-      error: "Batch creation failed",
-      message: error.message
+    console.log(`✅ Manufacturer Created Batch: ${batchNumber}`);
+    
+    res.status(201).json({ 
+        success: true, 
+        message: "Batch created successfully", 
+        batch: { batchNumber, status: "CREATED" } 
     });
-  }
-};
 
-// Get Batch Controller
-exports.getBatch = async (req, res) => {
-  try {
-    const { batchId } = req.params;
-    const batch = await Batch.findOne({ batchId });
-
-    if (!batch) {
-      return res.status(404).json({ error: "Batch not found" });
-    }
-
-    res.json({
-      success: true,
-      batch: {
-        batchId: batch.batchId,
-        medicineName: batch.medicineName,
-        quantity: batch.quantity,
-        manufacturerName: batch.manufacturerName,
-        manufacturingDate: batch.manufacturingDate,
-        expiryDate: batch.expiryDate,
-        genesisDataHash: batch.genesisDataHash,
-        genesisChainHash: batch.genesisChainHash,
-        chainLength: batch.chain.length,
-        status: batch.isComplete ? "COMPLETED" : "IN_TRANSIT"
-      },
-      chainHistory: batch.chain
-    });
   } catch (error) {
+    console.error("❌ Manufacturer Controller Error:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// Verify Batch Controller
-exports.verifyBatch = async (req, res) => {
-  try {
-    const { batchId } = req.body;
-    const batch = await Batch.findOne({ batchId });
-
-    if (!batch) {
-      return res.status(404).json({ error: "Batch not found" });
+// --- Optional: Get All Batches (For Manufacturer Dashboard List) ---
+exports.getAllBatches = async (req, res) => {
+    try {
+        const batches = await Batch.find({}, { batchNumber: 1, medicineName: 1, isComplete: 1, createdAt: 1 })
+                                   .sort({ createdAt: -1 })
+                                   .limit(20);
+        res.json({ success: true, data: batches });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
-
-    const genesisDataHash = generateDataHash({
-      batchId: batch.batchId,
-      medicineName: batch.medicineName,
-      quantity: batch.quantity,
-      manufacturerName: batch.manufacturerName,
-      manufacturingDate: batch.manufacturingDate,
-      expiryDate: batch.expiryDate
-    });
-
-    const isGenesisValid = genesisDataHash === batch.genesisDataHash;
-
-    res.json({
-      success: true,
-      verification: {
-        batchId: batch.batchId,
-        isGenesisHashValid: isGenesisValid,
-        chainIntegrity: {
-          genesisDataHash: {
-            stored: batch.genesisDataHash,
-            calculated: genesisDataHash,
-            match: isGenesisValid
-          },
-          genesisChainHash: batch.genesisChainHash
-        },
-        eventCount: batch.chain.length,
-        timestamp: new Date()
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 };

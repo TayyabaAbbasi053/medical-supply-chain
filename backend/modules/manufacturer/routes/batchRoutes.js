@@ -1,20 +1,11 @@
-const express = require("express");
-const batchController = require("../controllers/batchController");
-const { authenticateUser, requireManufacturer } = require("../../../middleware/authMiddleware");
-
+const express = require('express');
 const router = express.Router();
+const batchController = require('../controllers/batchController');
 
-// All routes require authentication and Manufacturer role
-router.use(authenticateUser);
-router.use(requireManufacturer);
+// 👇 CRITICAL: Your frontend is asking for '/create-batch', so we define it here.
+router.post('/create-batch', batchController.createBatch);
 
-// POST /api/modules/manufacturer/create-batch
-router.post("/create-batch", batchController.createBatch);
-
-// GET /api/modules/manufacturer/batch/:batchId
-router.get("/batch/:batchId", batchController.getBatch);
-
-// POST /api/modules/manufacturer/verify-batch
-router.post("/verify-batch", batchController.verifyBatch);
+// Optional: Route to get list
+router.get('/all', batchController.getAllBatches);
 
 module.exports = router;

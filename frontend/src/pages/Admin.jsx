@@ -172,7 +172,7 @@ export default function Admin() {
             >
               <option value="Manufacturer">Manufacturer</option>
               <option value="Distributor">Distributor</option>
-              <option value="Pharmacist">Pharmacist</option>
+              <option value="Pharmacy">Pharmacy</option>
               <option value="Patient">Patient</option>
             </select>
           </div>

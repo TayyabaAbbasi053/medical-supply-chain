@@ -1,5 +1,7 @@
 const mongoose = require("mongoose");
 
+// 👇 KEY FIX: Added { strict: false }
+// This prevents Mongoose from deleting 'quantity' and 'medicineName' from the chain events
 const EventSchema = new mongoose.Schema({
   role: String,              // Manufacturer, Distributor, Pharmacy
   location: String,
@@ -7,11 +9,12 @@ const EventSchema = new mongoose.Schema({
   signature: String,         // HMAC verification
   previousHash: String,      // Links to previous event's dataHash
   dataHash: String,          // Hash of current event data
-  chainHash: String,         // Hash-chain value (The "Blockchain" link)
+  chainHash: String,         // Hash-chain value
   qrCode: String,            // QR code data URL
   hmacSignature: String,     // HMAC signature for the event
-  handlerDetails: String     // Added to store Distributor Name/Phone
-});
+  handlerDetails: String,    // Distributor Name
+  contactInfo: String        // Phone Number
+}, { strict: false });       // 👈 THIS IS THE MAGIC FIX
 
 const BatchSchema = new mongoose.Schema({
   // 🔐 ENCRYPTED FIELDS (Sensitive)
@@ -25,14 +28,14 @@ const BatchSchema = new mongoose.Schema({
   expiryDate: { type: Date, required: true },
   
   // Encrypted container
-  batchDetails: { type: String, required: true }, // AES encrypted details
+  batchDetails: { type: String, required: true }, 
   
   // Security metadata
   isComplete: { type: Boolean, default: false },
-  prescriptionEncrypted: String,                  // Only added by Pharmacy
-  genesisDataHash: String,                        // SHA-256 hash of public batch data
-  genesisChainHash: String,                       // Genesis chain hash
-  genesisQRCode: String,                          // Genesis QR code
+  prescriptionEncrypted: String,                  
+  genesisDataHash: String,                        
+  genesisChainHash: String,                       
+  genesisQRCode: String,                          
   encryptionAlgorithm: { type: String, default: "AES-256-ECB" },
   
   // Supply chain history

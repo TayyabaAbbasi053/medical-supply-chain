@@ -1,103 +1,129 @@
 const CryptoJS = require("crypto-js");
 const QRCode = require("qrcode");
 
-// 1. SHA256 Hash (Generic)
+// --- 🛠️ HELPER: Safe Date Conversion ---
+// Prevents "Invalid time value" crashes
+const safeISO = (dateInput) => {
+    try {
+        if (!dateInput) return new Date().toISOString(); // Fallback for null
+        const d = new Date(dateInput);
+        if (isNaN(d.getTime())) return new Date().toISOString(); // Fallback for invalid date
+        return d.toISOString();
+    } catch (e) {
+        return new Date().toISOString();
+    }
+};
+
+// Helper: Sort object keys
+const sortObj = (obj) => {
+  return Object.keys(obj).sort().reduce((result, key) => {
+    if (obj[key] instanceof Date) {
+        result[key] = safeISO(obj[key]); // Use Safe Conversion
+    } else {
+        result[key] = obj[key];
+    }
+    return result;
+  }, {});
+};
+
+// 1. SHA256 Hash
 const calculateHash = (data) => {
-  return CryptoJS.SHA256(JSON.stringify(data)).toString();
+  return CryptoJS.SHA256(JSON.stringify(sortObj(data))).toString();
 };
 
-// 2. SHA-256 DataHash (For batch details)
-const generateDataHash = (batchData) => {
-  const dataString = JSON.stringify({
-    batchId: batchData.batchId,
-    medicineName: batchData.medicineName,
-    quantity: batchData.quantity,
-    manufacturerName: batchData.manufacturerName,
-    manufacturingDate: batchData.manufacturingDate,
-    expiryDate: batchData.expiryDate
-  });
-  return CryptoJS.SHA256(dataString).toString();
-};
-
-// 3. Hash-Chain Generation
+// 2. Hash-Chain
 const generateChainHash = (previousChainHash, dataHash) => {
-  const combinedString = previousChainHash + dataHash;
-  return CryptoJS.SHA256(combinedString).toString();
+  return CryptoJS.SHA256(previousChainHash + dataHash).toString();
 };
 
-// 4. HMAC Signature (Generic)
-const signData = (data, secretKey) => {
-  return CryptoJS.HmacSHA256(JSON.stringify(data), secretKey).toString();
+// 3. HMAC Signature
+const generateHMACSignature = (data, secretKey) => {
+  return CryptoJS.HmacSHA256(JSON.stringify(sortObj(data)), secretKey).toString();
 };
 
-// 5. HMAC Signature for Events
-const generateHMACSignature = (eventData, secretKey) => {
-  const signatureData = {
-    batchId: eventData.batchId || eventData.batchNumber, // Handle both key names
-    dataHash: eventData.dataHash,
-    chainHash: eventData.chainHash,
-    timestamp: eventData.timestamp,
-    role: eventData.role
-  };
-  return CryptoJS.HmacSHA256(JSON.stringify(signatureData), secretKey).toString();
-};
-
-// 6. AES Encryption
+// 4. AES Encryption
 const encryptData = (text) => {
   return CryptoJS.AES.encrypt(text, process.env.AES_SECRET).toString();
 };
 
-// 7. AES Decryption
 const decryptData = (ciphertext) => {
-  const bytes = CryptoJS.AES.decrypt(ciphertext, process.env.AES_SECRET);
-  return bytes.toString(CryptoJS.enc.Utf8);
+  if (!ciphertext) return null;
+  try {
+    const bytes = CryptoJS.AES.decrypt(ciphertext, process.env.AES_SECRET);
+    return bytes.toString(CryptoJS.enc.Utf8);
+  } catch (e) { return null; }
 };
 
-// 8. QR Code Generation
+// 5. QR Code
 const generateQRCode = async (batchId, chainHash) => {
   try {
-    const qrData = `${batchId}|${chainHash}`;
-    return await QRCode.toDataURL(qrData, {
-      errorCorrectionLevel: 'H',
-      type: 'image/png',
-      width: 300,
-    });
-  } catch (error) {
-    console.error("QR Code Generation Error:", error);
-    throw new Error("Failed to generate QR code");
-  }
+    return await QRCode.toDataURL(`${batchId}|${chainHash}`, { errorCorrectionLevel: 'H' });
+  } catch (error) { return ""; }
 };
 
-// 9. ⭐ NEW: Validate Chain Integrity (Tamper Check)
-const validateChain = (chain) => {
-  for (let i = 1; i < chain.length; i++) {
-    const currentBlock = chain[i];
-    const previousBlock = chain[i - 1];
+// --- 🛡️ THE TRUTH: CANONICAL PAYLOAD HELPER ---
+const createCanonicalPayload = (block, batchNumber) => {
+    // A. Manufacturer Block (Genesis)
+    if (block.role === "Manufacturer") {
+        return {
+            batchNumber: batchNumber || block.batchNumber,
+            medicineName: block.medicineName,
+            manufacturerName: block.manufacturerName,
+            quantity: Number(block.quantity), 
+            // 👇 USE SAFE ISO CONVERSION HERE
+            manufacturingDate: safeISO(block.manufacturingDate),
+            expiryDate: safeISO(block.expiryDate),
+            timestamp: safeISO(block.timestamp),
+            role: "Manufacturer"
+        };
+    }
+    
+    // B. Distributor / Pharmacy Block
+    return {
+        batchNumber: batchNumber || block.batchNumber,
+        role: block.role,
+        location: block.location,
+        handlerDetails: block.handlerDetails,
+        contactInfo: block.contactInfo,
+        // 👇 USE SAFE ISO CONVERSION HERE
+        timestamp: safeISO(block.timestamp),
+        previousHash: block.previousHash
+    };
+};
 
-    // 1. Check if previousHash matches the dataHash of previous block
-    if (currentBlock.previousHash !== previousBlock.dataHash) {
-      console.log(`❌ Data Link Broken at index ${i}`);
-      return false;
+// --- 6. Sign Generic Data (Legacy support)
+const signData = (data, secretKey) => {
+    return CryptoJS.HmacSHA256(JSON.stringify(sortObj(data)), secretKey).toString();
+};
+
+// --- ⭐ STRICT VALIDATION ---
+const validateChain = (chain, batchNumber) => {
+  for (let i = 0; i < chain.length; i++) {
+    const currentBlock = chain[i];
+
+    // 1. DATA INTEGRITY (Re-hash using Canonical Payload)
+    const payload = createCanonicalPayload(currentBlock, batchNumber);
+    const freshHash = calculateHash(payload);
+
+    if (freshHash !== currentBlock.dataHash) {
+        console.error(`🚨 TAMPER DETECTED at Block ${i} (${currentBlock.role})`);
+        console.error(`Reason: Data content mismatch.`);
+        return false;
     }
 
-    // 2. Check if chainHash is correctly derived from previous chainHash + current dataHash
-    const recalculatedChainHash = generateChainHash(previousBlock.chainHash, currentBlock.dataHash);
-    if (recalculatedChainHash !== currentBlock.chainHash) {
-      console.log(`❌ Chain Hash Mismatch at index ${i}`);
-      return false;
+    // 2. LINK INTEGRITY
+    if (i > 0) {
+        const previousBlock = chain[i - 1];
+        if (currentBlock.previousHash !== previousBlock.dataHash) return false; 
+        
+        const freshChainHash = generateChainHash(previousBlock.chainHash, currentBlock.dataHash);
+        if (freshChainHash !== currentBlock.chainHash) return false;
     }
   }
   return true;
 };
 
 module.exports = {
-  calculateHash,
-  generateDataHash,
-  generateChainHash,
-  signData,
-  generateHMACSignature,
-  encryptData,
-  decryptData,
-  generateQRCode,
-  validateChain
+  calculateHash, generateChainHash, generateHMACSignature, signData,
+  encryptData, decryptData, generateQRCode, validateChain, createCanonicalPayload
 };

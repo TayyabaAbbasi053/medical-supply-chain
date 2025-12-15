@@ -21,7 +21,7 @@ export default function Home() {
       title: 'Pharmacy',
       subtitle: 'Receive verified medicines and manage inventory.',
       icon: '💊',
-      path: '/login?role=Pharmacist'
+      path: '/login?role=Pharmacy'
     },
     {
       title: 'Patient',
