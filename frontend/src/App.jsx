@@ -1,85 +1,32 @@
-import React from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Link,
-  useLocation
-} from "react-router-dom";
-
-import Home from "./pages/Home";
-import Manufacturer from "./pages/Manufacturer";
-import Distributor from "./pages/Distributor";
-import Patient from "./pages/Patient";
-import Pharmacy from './pages/Pharmacy';
-import Admin from './pages/Admin';
-
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import "./App.css";
 
-function Layout() {
-  const location = useLocation();
+/* ===== PAGE IMPORTS (VERIFIED) ===== */
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Patient from "./pages/Patient";
+import Distributor from "./pages/Distributor";
+import Admin from "./pages/Admin";
+import Manufacturer from "./pages/Manufacturer";
+import Pharmacy from "./pages/Pharmacy";
+import Register from "./pages/Register";
 
-  // Hide navbar on login, register, home, and dashboard pages
-  const hideNavbar =
-    location.pathname === "/login" ||
-    location.pathname === "/register" ||
-    location.pathname === "/" ||
-    location.pathname === "/manufacturer" ||
-    location.pathname === "/distributor" ||
-    location.pathname === "/patient" ||
-    location.pathname === "/pharmacy" ||
-    location.pathname === "/admin";
-
+export default function App() {
   return (
-    <div className="app-container">
-
-      {/* NAVBAR (Hidden on login/register) */}
-      {!hideNavbar && (
-        <nav className="navbar">
-          <h1>💊 SupplyChain Secure</h1>
-          <div className="links">
-            <Link to="/login">Login</Link>
-            <Link to="/register">Register</Link>
-            <Link to="/manufacturer">Manufacturer</Link>
-            <Link to="/distributor">Distributor</Link>
-            <Link to="/patient">Patient Verification</Link>
-            <Link to="/pharmacy">Pharmacy</Link>
-          </div>
-        </nav>
-      )}
-
-      <div className="content">
+    <Router>
+      <div className="app">
         <Routes>
           <Route path="/" element={<Home />} />
-
-          {/* AUTH PAGES */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* DASHBOARDS */}
-          <Route path="/manufacturer" element={<Manufacturer />} />
-          <Route path="/distributor" element={<Distributor />} />
           <Route path="/patient" element={<Patient />} />
+          <Route path="/distributor" element={<Distributor />} />
+          <Route path="/manufacturer" element={<Manufacturer />} />
           <Route path="/pharmacy" element={<Pharmacy />} />
           <Route path="/admin" element={<Admin />} />
-
-          {/* DEFAULT FALLBACK */}
-          <Route path="*" element={<Home />} />
         </Routes>
       </div>
-    </div>
+    </Router>
   );
 }
-
-function App() {
-  return (
-    <BrowserRouter>
-      <Layout />
-    </BrowserRouter>
-  );
-}
-
-export default App;
