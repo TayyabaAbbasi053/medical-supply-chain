@@ -3,16 +3,14 @@ import axios from "axios";
 import jsQR from "jsqr";
 
 export default function PatientDashboard() {
-  /* ================= DASHBOARD STATE ================= */
+  /* ================= STATE ================= */
   const [activeSection, setActiveSection] = useState(null);
-
-  /* ================= DATA ================= */
   const [batchId, setBatchId] = useState("");
   const [qrBatchId, setQrBatchId] = useState("");
   const [batchData, setBatchData] = useState(null);
   const [error, setError] = useState("");
 
-  /* ================= VERIFY MANUAL ================= */
+  /* ================= VERIFY ================= */
   const verifyBatch = async (id) => {
     try {
       setError("");
@@ -24,7 +22,7 @@ export default function PatientDashboard() {
     }
   };
 
-  /* ================= QR IMAGE SCAN ================= */
+  /* ================= QR SCAN ================= */
   const handleQRUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -49,7 +47,7 @@ export default function PatientDashboard() {
         setQrBatchId(qr.data.trim());
         verifyBatch(qr.data.trim());
       } else {
-        setError("❌ QR not detected");
+        setError("❌ QR Code not detected");
       }
     };
   };
@@ -59,12 +57,12 @@ export default function PatientDashboard() {
       <div style={styles.container}>
         <h1 style={styles.title}>Patient Dashboard</h1>
 
-        {/* ================= DASHBOARD CARDS ================= */}
+        {/* ===== DASHBOARD OPTIONS ===== */}
         <div style={styles.grid}>
-          <Card title="Verify Batch" onClick={() => setActiveSection("verify")} />
-          <Card title="Track Supply" onClick={() => setActiveSection("track")} />
-          <Card title="Verify via QR" onClick={() => setActiveSection("qr")} />
-          <Card
+          <DashboardCard title="Verify Batch" onClick={() => setActiveSection("verify")} />
+          <DashboardCard title="Track Supply Chain" onClick={() => setActiveSection("track")} />
+          <DashboardCard title="Verify via QR Code" onClick={() => setActiveSection("qr")} />
+          <DashboardCard
             title="Logout"
             danger
             onClick={() => {
@@ -74,9 +72,9 @@ export default function PatientDashboard() {
           />
         </div>
 
-        {/* ================= VERIFY BATCH ================= */}
+        {/* ===== VERIFY MANUAL ===== */}
         {activeSection === "verify" && (
-          <Section title="Verify Batch">
+          <Section title="Verify Medicine Batch">
             <input
               style={styles.input}
               placeholder="Enter Batch ID"
@@ -89,17 +87,17 @@ export default function PatientDashboard() {
           </Section>
         )}
 
-        {/* ================= QR VERIFY ================= */}
+        {/* ===== QR VERIFY ===== */}
         {activeSection === "qr" && (
-          <Section title="Verify via QR Code">
+          <Section title="Verify Using QR Code">
             <input type="file" accept="image/*" onChange={handleQRUpload} />
-            {qrBatchId && <p>📦 Batch ID: {qrBatchId}</p>}
+            {qrBatchId && <p style={styles.infoText}>Batch ID: {qrBatchId}</p>}
           </Section>
         )}
 
-        {/* ================= TRACK SUPPLY ================= */}
+        {/* ===== TRACK SUPPLY ===== */}
         {activeSection === "track" && (
-          <Section title="Track Supply Chain">
+          <Section title="Track Supply Chain Journey">
             <input
               style={styles.input}
               placeholder="Enter Batch ID"
@@ -111,18 +109,18 @@ export default function PatientDashboard() {
           </Section>
         )}
 
-        {/* ================= RESULT ================= */}
+        {/* ===== RESULT ===== */}
         {batchData && (
           <div style={styles.result}>
-            <h3>✅ Authentic Medicine</h3>
+            <h3 style={styles.success}>✔ Authentic Medicine</h3>
             <p><b>Medicine:</b> {batchData.medicineName}</p>
             <p><b>Manufacturer:</b> {batchData.manufacturerName}</p>
 
-            <h4>📦 Supply Chain</h4>
-            <ul>
+            <h4 style={styles.subHeading}>Supply Chain Timeline</h4>
+            <ul style={styles.timeline}>
               {batchData.chain.map((e, i) => (
                 <li key={i}>
-                  {e.role} — {e.location}
+                  <b>{e.role}</b> — {e.location}
                 </li>
               ))}
             </ul>
@@ -135,37 +133,120 @@ export default function PatientDashboard() {
   );
 }
 
-/* ================= SMALL COMPONENTS ================= */
-const Card = ({ title, onClick, danger }) => (
+/* ================= COMPONENTS ================= */
+const DashboardCard = ({ title, onClick, danger }) => (
   <div
     onClick={onClick}
     style={{
       ...styles.card,
-      borderColor: danger ? "#b91c1c" : "#e5d1d1",
-      color: danger ? "#b91c1c" : "#7a1212",
+      borderColor: danger ? "#7a1212" : "#7a1212",
+      background: danger ? "#fff5f5" : "#ffffff",
     }}
   >
-    <h3>{title}</h3>
+    <h3 style={{ color: "#7a1212" }}>{title}</h3>
   </div>
 );
 
 const Section = ({ title, children }) => (
   <div style={styles.section}>
-    <h2>{title}</h2>
+    <h2 style={styles.sectionTitle}>{title}</h2>
     {children}
   </div>
 );
 
 /* ================= STYLES ================= */
 const styles = {
-  page: { minHeight: "100vh", background: "#f9f5f4", padding: 30 },
-  container: { maxWidth: 1000, margin: "auto", background: "#fff", padding: 30, borderRadius: 16 },
-  title: { textAlign: "center", color: "#7a1212" },
-  grid: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 20, marginBottom: 30 },
-  card: { padding: 30, borderRadius: 12, border: "2px solid", cursor: "pointer", textAlign: "center" },
-  section: { marginTop: 20, padding: 20, background: "#f9fafb", borderRadius: 10 },
-  input: { width: "100%", padding: 8, marginTop: 10 },
-  btn: { marginTop: 10, padding: "8px 16px", background: "#1a73e8", color: "#fff", border: "none" },
-  result: { marginTop: 20, background: "#f0fdf4", padding: 20, borderRadius: 10 },
-  error: { marginTop: 10, background: "#fee2e2", padding: 10 },
+  page: {
+    minHeight: "100vh",
+    background: "#fdf7f7",
+    padding: 30,
+    fontFamily: "Segoe UI, Roboto, sans-serif",
+  },
+  container: {
+    maxWidth: 1100,
+    margin: "auto",
+    background: "#ffffff",
+    padding: 40,
+    borderRadius: 14,
+    border: "2px solid #7a1212",
+  },
+  title: {
+    textAlign: "center",
+    color: "#7a1212",
+    marginBottom: 30,
+    fontSize: "1.8rem",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: 20,
+    marginBottom: 30,
+  },
+  card: {
+    padding: 30,
+    borderRadius: 12,
+    border: "2px solid #7a1212",
+    cursor: "pointer",
+    textAlign: "center",
+    transition: "all 0.2s ease",
+  },
+  section: {
+    marginTop: 25,
+    padding: 25,
+    background: "#fffafa",
+    borderRadius: 12,
+    border: "1.5px solid #7a1212",
+  },
+  sectionTitle: {
+    color: "#7a1212",
+    marginBottom: 12,
+  },
+  input: {
+    width: "100%",
+    padding: 10,
+    marginTop: 10,
+    borderRadius: 6,
+    border: "1.5px solid #7a1212",
+  },
+  btn: {
+    marginTop: 12,
+    padding: "10px 18px",
+    background: "#7a1212",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: 6,
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+  result: {
+    marginTop: 30,
+    padding: 20,
+    background: "#fffafa",
+    borderRadius: 12,
+    border: "2px solid #7a1212",
+  },
+  success: {
+    color: "#7a1212",
+    marginBottom: 10,
+  },
+  subHeading: {
+    marginTop: 16,
+    color: "#7a1212",
+  },
+  timeline: {
+    paddingLeft: 18,
+  },
+  error: {
+    marginTop: 20,
+    padding: 12,
+    background: "#fff0f0",
+    color: "#7a1212",
+    borderRadius: 8,
+    border: "1.5px solid #7a1212",
+  },
+  infoText: {
+    marginTop: 10,
+    color: "#7a1212",
+    fontWeight: "600",
+  },
 };
