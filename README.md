@@ -6,7 +6,7 @@ The Medical Supply Chain Information Security System is a secure, cryptography-d
 
 The system enables secure tracking of medicines from **Manufacturer → Distributor → Pharmacist → Patient** while ensuring confidentiality, integrity, authenticity, and traceability through multiple layers of security mechanisms.
 
-
+---
 
 ## 🎯 Objectives
 
@@ -17,6 +17,7 @@ The system enables secure tracking of medicines from **Manufacturer → Distribu
 * Maintain accountability through Role-Based Access Control (RBAC).
 * Provide end-to-end traceability across the supply chain.
 
+---
 
 ## ✨ Features
 
@@ -50,6 +51,7 @@ The system enables secure tracking of medicines from **Manufacturer → Distribu
 * Medicine Dispensing
 * Patient Authentication Checks
 
+---
 
 ## 🏗️ System Workflow
 
@@ -61,7 +63,7 @@ The system enables secure tracking of medicines from **Manufacturer → Distribu
 6. Pharmacist verifies chain integrity before dispensing.
 7. Patient scans QR code to verify medicine authenticity.
 
-
+---
 
 ## 🔒 Security Architecture
 
@@ -85,7 +87,7 @@ Ensures event authenticity and prevents repudiation.
 
 Provides instant physical-to-digital verification of medicine authenticity.
 
-
+---
 
 ## 💻 Tech Stack
 
@@ -107,7 +109,7 @@ Provides instant physical-to-digital verification of medicine authenticity.
 * nodemailer
 * cors
 
-
+---
 
 ## 🚀 Installation
 
@@ -195,4 +197,3 @@ Server will start on the configured port.
 ## 📜 License
 
 This project was developed for academic and educational purposes.
-
